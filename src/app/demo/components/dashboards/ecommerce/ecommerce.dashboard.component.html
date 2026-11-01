@@ -1,0 +1,403 @@
+<div class="grid">
+    <p-messages [(value)]="msgs1" class="w-full mx-3" styleClass=" w-full border-round-3xl surface-card font-medium text-color-secondary" [enableService]="false"></p-messages>
+
+    <div class="col-12">
+        <div class="grid" style="margin: -1rem">
+            <div class="col-12 sm:col">
+                <div class="card surface-card text-500 flex justify-content-between pt-4 h-full" style="min-width: 17rem">
+                    <div class="overview-info">
+                        <h6 class="m-0 mb-1 text-500">Orders</h6>
+                        <h1 class="m-0 text-500">23</h1>
+                    </div>
+                    <i class="pi pi-chart-line text-3xl"></i>
+                </div>
+            </div>
+            <div class="col-12 sm:col">
+                <div class="card text-0 flex justify-content-between pt-4 h-full" style="background-color: var(--primary-color); min-width: 17rem">
+                    <div class="overview-info">
+                        <h6 class="m-0 mb-1 text-0">Revenue</h6>
+                        <h1 class="m-0 text-0">$1548.26</h1>
+                    </div>
+                    <i class="pi pi-dollar text-3xl"></i>
+                </div>
+            </div>
+            <div class="col-12 sm:col">
+                <div class="card bg-gray-400 text-white flex justify-content-between pt-4 h-full" style="min-width: 17rem">
+                    <div class="overview-info">
+                        <h6 class="m-0 mb-1 text-white">Buyer Messages</h6>
+                        <h1 class="m-0 text-white">2</h1>
+                    </div>
+                    <i class="pi pi-envelope text-3xl"></i>
+                </div>
+            </div>
+            <div class="col-12 sm:col">
+                <div class="card bg-gray-600 text-white flex justify-content-between pt-4 h-full" style="min-width: 17rem">
+                    <div class="overview-info">
+                        <h6 class="m-0 mb-1 text-white">CTR</h6>
+                        <h1 class="m-0 text-white">12%</h1>
+                    </div>
+                    <i class="pi pi-chart-bar text-3xl"></i>
+                </div>
+            </div>
+            <div class="col-12 sm:col">
+                <div class="card text-white flex justify-content-between pt-4 h-full" style="background: linear-gradient(90deg, #ffb340 0%, #ffa740 100%); min-width: 17rem">
+                    <div class="overview-info">
+                        <h6 class="m-0 mb-1 text-white">Out of Stock Products</h6>
+                        <h1 class="m-0 text-white">4</h1>
+                    </div>
+                    <i class="pi pi-box text-3xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 xl:col-8">
+        <div class="card">
+            <div class="card-header gap-3">
+                <div class="card-title">
+                    <h6>Orders</h6>
+                    <p class="subtitle">
+                        Your <b>{{ selectedDate.name }}</b> orders data from
+                        <b>{{ selectedDate.code == 'DAY' ? orders.dailyData.dateRange : selectedDate.code == 'WEEK' ? orders.weeklyData.dateRange : orders.monthlyData.dateRange }}</b>
+                    </p>
+                </div>
+                <p-dropdown [options]="dateRanges" [(ngModel)]="selectedDate" placeholder="Monthly" optionLabel="name" [showClear]="false" styleClass="w-9rem" (onChange)="onDateChangeBarChart()"></p-dropdown>
+            </div>
+            <div class="chart-info mb-3 flex align-items-center gap-5 flex-wrap">
+                <div class="info">
+                    <h6 class="m-0 mb-1 text-color-secondary font-normal">Total Orders</h6>
+                    <p class="m-0 p-0 font-bold">
+                        {{ selectedDate.code == 'DAY' ? sumOf(orders.dailyData.orders) : selectedDate.code == 'WEEK' ? sumOf(orders.weeklyData.orders) : sumOf(orders.monthlyData.orders) }}
+                    </p>
+                </div>
+                <div class="info">
+                    <h6 class="m-0 mb-1 text-color-secondary font-normal">Total Units</h6>
+                    <p class="m-0 p-0 font-bold">
+                        {{ selectedDate.code == 'DAY' ? sumOf(orders.dailyData.orderUnits) : selectedDate.code == 'WEEK' ? sumOf(orders.weeklyData.orderUnits) : sumOf(orders.monthlyData.orderUnits) }}
+                    </p>
+                </div>
+                <div class="info">
+                    <h6 class="m-0 mb-1 text-color-secondary font-normal">Total Sales</h6>
+                    <p class="m-0 p-0 font-bold">
+                        {{ selectedDate.code == 'DAY' ? orders.dailyData.totalSales : selectedDate.code == 'WEEK' ? orders.weeklyData.totalSales : orders.monthlyData.totalSales }}
+                    </p>
+                </div>
+                <div class="info">
+                    <h6 class="m-0 mb-1 text-color-secondary font-normal">Avg. sales/orders item</h6>
+                    <p class="m-0 p-0 font-bold">
+                        {{ selectedDate.code == 'DAY' ? orders.dailyData.avarageSalesByOrder : selectedDate.code == 'WEEK' ? orders.weeklyData.avarageSalesByOrder : orders.monthlyData.avarageSalesByOrder }}
+                    </p>
+                </div>
+                <div class="info">
+                    <h6 class="m-0 mb-1 text-color-secondary font-normal">Avg. units/orders item</h6>
+                    <p class="m-0 p-0 font-bold">
+                        {{ selectedDate.code == 'DAY' ? orders.dailyData.avarageUnitByOrder : selectedDate.code == 'WEEK' ? orders.weeklyData.avarageUnitByOrder : orders.monthlyData.avarageUnitByOrder }}
+                    </p>
+                </div>
+            </div>
+            <p-chart type="bar" height="530" [data]="chartData" [options]="chartOptions"></p-chart>
+        </div>
+    </div>
+    <div class="col-12 xl:col-4">
+        <div class="grid">
+            <div class="col-12 md:col-6 xl:col-12">
+                <div class="card">
+                    <div class="card-header gap-3 pb-2">
+                        <div class="card-title">
+                            <h6>Waiting Actions</h6>
+                            <p class="subtitle">Lorem ipsum dolor sit amet consectetur adipisicing elit.</p>
+                        </div>
+                    </div>
+                    <p-tabView>
+                        <p-tabPanel header="Unshipped Orders" class="w-full p-0">
+                            <ng-template pTemplate="header">
+                                <div class="pr-2" pBadge value="6" severity="info">
+                                    <h6 class="m-0 mr-2">Unshipped Orders</h6>
+                                </div>
+                            </ng-template>
+                            <ul class="list-none p-0 overflow-auto" style="margin: 0 -1.5rem -1rem; max-height: 17.745rem">
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05895"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">4h ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05852"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">6h ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05605"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">1d ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05462"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">1d ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05241"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">1w 2d ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium">Order</h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-blue-300" class="inline-block" value="#05241"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">1w 2d ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1"> <b>1</b> Bamboo Watch, <b>3</b> Blue Band, </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu.toggle($event)"></button>
+                                    </div>
+                                </li>
+                            </ul>
+                            <p-menu #menu [popup]="true" [model]="items"></p-menu>
+                        </p-tabPanel>
+                        <p-tabPanel header="Messages" class="w-full p-0">
+                            <ng-template pTemplate="header">
+                                <div class="pr-2" pBadge value="3" severity="warning">
+                                    <h6 class="m-0 mr-2">Unreturned Messages</h6>
+                                </div>
+                            </ng-template>
+                            <ul class="list-none p-0 overflow-auto" style="margin: 0 -1.5rem -1rem; max-height: 17.745rem">
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium font-medium">Message from <b>Anna K.</b></h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-orange-300" class="inline-block" value="#05895"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">4h ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1 white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                                            Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laboriosam ad itaque voluptatum deleniti impedit! Inventore eius soluta maxime a quisquam alias, at minima ullam reiciendis blanditiis voluptate.
+                                            Dolore, nisi vel.
+                                        </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu2.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium font-medium">Message from <b>Daniel F.</b></h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-orange-300" class="inline-block" value="#05895"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">6h ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1 white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                                            Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laboriosam ad itaque voluptatum deleniti impedit! Inventore eius soluta maxime a quisquam alias, at minima ullam reiciendis blanditiis voluptate.
+                                            Dolore, nisi vel.
+                                        </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu2.toggle($event)"></button>
+                                    </div>
+                                </li>
+                                <li class="border-round-lg pt-2 px-3 pb-2 mb-3" style="background-color: var(--primary-lighter-color)">
+                                    <div class="flex justify-content-between align-items-center mb-1">
+                                        <div class="flex align-items-center gap-1">
+                                            <h6 class="line-height-3 m-0 font-medium font-medium">Message from <b>Judy F.</b></h6>
+                                            <p-tag styleClass="m-0 mr-2 px-2 text-xs bg-orange-300" class="inline-block" value="#05895"></p-tag>
+                                        </div>
+
+                                        <span class="text-gray-300 font-semibold text-sm line-height-1">1d ago</span>
+                                    </div>
+                                    <div class="flex justify-content-between align-items-center">
+                                        <span class="mt-1 text-400 block text-sm line-height-1 white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                                            Lorem ipsum dolor sit amet, consectetur adipisicing elit. Laboriosam ad itaque voluptatum deleniti impedit! Inventore eius soluta maxime a quisquam alias, at minima ullam reiciendis blanditiis voluptate.
+                                            Dolore, nisi vel.
+                                        </span>
+                                        <button type="button" pButton icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-sm flex-shrink-0" (click)="menu2.toggle($event)"></button>
+                                    </div>
+                                </li>
+                            </ul>
+                            <p-menu #menu2 [popup]="true" [model]="items"></p-menu>
+                        </p-tabPanel>
+                    </p-tabView>
+                </div>
+            </div>
+            <div class="col-12 md:col-6 xl:col-12">
+                <div class="card">
+                    <div class="card-header gap-3 pb-2">
+                        <div class="card-title">
+                            <h6>Sales By Category</h6>
+                            <p class="subtitle">Categorized sales data</p>
+                        </div>
+                    </div>
+                    <div class="flex align-items-center justify-content-between">
+                        <ul class="list-none p-0 m-0">
+                            <li class="mb-3 flex align-items-center"><i class="pi pi-circle-fill text-primary-300 mr-2"></i><span>Watches</span></li>
+                            <li class="mb-3 flex align-items-center"><i class="pi pi-circle-fill text-orange-300 mr-2"></i><span>Clothing</span></li>
+                            <li class="mb-3 flex align-items-center"><i class="pi pi-circle-fill text-green-300 mr-2"></i><span>Gadgets</span></li>
+                            <li class="mb-3 flex align-items-center"><i class="pi pi-circle-fill text-cyan-300 mr-2"></i><span>Accessories</span></li>
+                        </ul>
+                        <p-chart type="doughnut" [data]="pieData" [options]="pieOptions" height="140px" width="140px"></p-chart>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 xl:col-3">
+        <div class="card overflow-auto">
+            <div class="card-header gap-3">
+                <div class="card-title">
+                    <h6>Clients</h6>
+                    <p class="subtitle">Your Clients Data</p>
+                </div>
+                <p class="subtitle">8 May</p>
+            </div>
+            <p-chart type="line" [data]="chart1" [options]="chartOptions1" [responsive]="true" style="max-height: 160px"></p-chart>
+            <div class="p-3 border-round-xl my-3 mx-0" style="background-color: var(--primary-lighter-color)">
+                <div class="flex align-items-center b-2">
+                    <img src="assets/demo/images/dashboard/subtract.svg" alt="freya-layout" />
+                    <h6 class="my-0 mx-2">Insights</h6>
+                </div>
+                <ul class="list-none p-0 m-0">
+                    <li class="flex align-items-center justify-content-between text-gray-300 my-2 mx-0">
+                        <span class="font-semibold"><span class="font-normal text-sm">1</span> Client from Mail CTA</span>
+                        <span class="p-tag p-tag-warning">12%</span>
+                    </li>
+                    <li class="flex align-items-center justify-content-between text-gray-300 my-2 mx-0">
+                        <span class="font-semibold"><span class="font-normal text-sm">2</span> Clients from FB Ads</span>
+                        <span class="p-tag p-tag-success">UP!</span>
+                    </li>
+                    <a href="#">See all(4)</a>
+                </ul>
+            </div>
+            <button pButton pRipple type="button" label="Go to Clients Reports" class="p-button-outlined w-full"></button>
+        </div>
+    </div>
+    <div class="col-12 xl:col-9">
+        <div class="card h-full">
+            <div class="card-header gap-3">
+                <div class="card-title">
+                    <h6>Ad Managment</h6>
+                    <p class="subtitle">Your <b>Active</b> Ad's ROI's</p>
+                </div>
+                <div class="inline-flex align-items-center">
+                    <span class="p-input-icon-left flex-auto">
+                        <i class="pi pi-search"></i>
+                        <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search" class="w-full" style="border-radius: 2rem" />
+                    </span>
+                    <button pButton pRipple icon="pi pi-upload" class="p-button-rounded mx-3" (click)="dt.exportCSV()"></button>
+                </div>
+            </div>
+
+            <p-table #dt [value]="activeAds" dataKey="name" [rows]="3" [paginator]="true" [tableStyle]="{ 'min-width': '60rem' }">
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th class="px-1" style="width: 5rem"></th>
+                        <th class="px-1" pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
+                        <th class="px-1"></th>
+                        <th class="px-1" pSortableColumn="adROI" class="text-right">Ad ROI <p-sortIcon field="adROI"></p-sortIcon></th>
+                        <th class="px-1" pSortableColumn="adCTR" class="text-right">Ad CTR<p-sortIcon field="adCTR"></p-sortIcon></th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-ad let-expanded="expanded">
+                    <tr>
+                        <td class="px-1 py-2">
+                            <button type="button" pButton pRipple [pRowToggler]="ad" class="p-button-text p-button-rounded p-button-plain" [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></button>
+                        </td>
+                        <td class="px-1 py-2">{{ ad.name }}</td>
+                        <td class="px-1 py-2"><img [src]="ad.image" [alt]="ad.name" height="60" class="border-round" /></td>
+                        <td class="px-1 py-2 text-right">{{ ad.adROI }}</td>
+                        <td class="px-1 py-2 text-right">{{ ad.adCTR }}</td>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="rowexpansion" let-ad>
+                    <tr>
+                        <td colspan="7">
+                            <div class="flex">
+                                <img [src]="ad.image" [alt]="ad.name" height="160" class="border-round" />
+                                <div class="ml-3 w-8">
+                                    <div class="p-3">
+                                        <h4 class="font-medium m-0 mb-2">{{ ad.name }}</h4>
+                                        <p class="p-0 m-0">{{ ad.adDesc }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 mb-3">
+                                <p-table [value]="ad.detailedData" styleClass="" responsiveLayout="scroll" [globalFilterFields]="['name', 'category', 'inventoryStatus']">
+                                    <ng-template pTemplate="header">
+                                        <tr>
+                                            <th style="min-width: 12rem" class="white-space-nowrap">Name</th>
+                                            <th class="white-space-nowrap text-right">ROI</th>
+                                            <th class="white-space-nowrap text-right">CTR</th>
+                                            <th class="white-space-nowrap text-right">CR</th>
+                                            <th class="white-space-nowrap text-right">CPA</th>
+                                            <th class="white-space-nowrap text-right">CPC</th>
+                                            <th class="white-space-nowrap text-right">Imp.</th>
+                                            <th class="white-space-nowrap text-right">Clicks</th>
+                                        </tr>
+                                    </ng-template>
+                                    <ng-template pTemplate="body" let-details>
+                                        <tr>
+                                            <td>{{ details.name }}</td>
+                                            <td class="text-right">{{ details.adROI }}</td>
+                                            <td class="text-right">{{ details.adCTR }}</td>
+                                            <td class="text-right">{{ details.adCR }}</td>
+                                            <td class="text-right">{{ details.adCPA }}</td>
+                                            <td class="text-right">{{ details.adCPC }}</td>
+                                            <td class="text-right">{{ details.impressions }}</td>
+                                            <td class="text-right">{{ details.clicks }}</td>
+                                        </tr>
+                                    </ng-template>
+                                </p-table>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+    </div>
+</div>

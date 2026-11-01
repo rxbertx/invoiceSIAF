@@ -1,0 +1,35 @@
+<div class="surface-0">
+    <div class="flex align-items-center justify-content-between flex-column h-screen">
+        <div class="flex flex-column align-items-center justify-content-center w-full md:w-4 h-full text-center py-6 px-4">
+            <a [routerLink]="['/']" class="mb-6">
+                <img src="assets/layout/images/logo-ac.png" alt="AC Ingenieria" style="height: 56px; width: auto" />
+            </a>
+            <div class="mb-4">
+                <div class="text-900 text-xl font-bold mb-2">Verification</div>
+                <span class="text-600 font-medium">We have sent code to you email:</span>
+                <div class="flex align-items-center mt-1">
+                    <i class="pi pi-envelope text-600"></i>
+                    <span class="text-900 font-bold ml-2">dm**@gmail.com</span>
+                </div>
+            </div>
+            <div class="flex flex-column">
+                <div class="flex justify-content-between w-full align-items-center mb-4 gap-3">
+                    <input pInputText (ngModel)="(val1)" pKeyFilter="num" class="w-3rem text-center text-color-secondary surface-50 border-200" maxlength="1" (keyup)="onDigitInput($event)" />
+                    <input pInputText (ngModel)="(val2)" pKeyFilter="num" class="w-3rem text-center text-color-secondary surface-50 border-200" maxlength="1" (keyup)="onDigitInput($event)" />
+                    <input pInputText (ngModel)="(val3)" pKeyFilter="num" class="w-3rem text-center text-color-secondary surface-50 border-200" maxlength="1" (keyup)="onDigitInput($event)" />
+                    <input pInputText (ngModel)="(val4)" pKeyFilter="num" class="w-3rem text-center text-color-secondary surface-50 border-200" maxlength="1" (keyup)="onDigitInput($event)" />
+                </div>
+
+                <div class="flex flex-wrap gap-2 justify-content-between">
+                    <button pButton pRipple label="Cancel" class="flex-auto p-button-outlined" [routerLink]="['/']"></button>
+                    <button pButton pRipple label="Verify" class="flex-auto" [routerLink]="['/']"></button>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap align-items-center pb-8 px-4">
+            <img src="assets/layout/images/logo-ac.png" alt="AC Ingenieria" style="height: 28px; width: auto; margin-right: 1.25rem" />
+            <h6 class="m-0 font-medium text-300">© AC Ingenieria</h6>
+        </div>
+    </div>
+</div>
+<app-config [minimal]="true"></app-config>

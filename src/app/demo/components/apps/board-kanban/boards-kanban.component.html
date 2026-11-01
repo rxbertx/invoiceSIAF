@@ -1,0 +1,99 @@
+<div class="grid">
+    <div class="col-12">
+        <div class="card px-6 py-6">
+            <p-toast></p-toast>
+            <p-toolbar styleClass="mb-4">
+                <ng-template pTemplate="left">
+                    <div class="my-2">
+                        <button pButton pRipple label="Nuevo Proyecto" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+                    </div>
+                </ng-template>
+            </p-toolbar>
+
+            <p-table #dt [value]="boards" responsiveLayout="scroll" [rows]="10" [globalFilterFields]="['title','description','status']" [paginator]="true" [rowsPerPageOptions]="[10,20,30]" [showCurrentPageReport]="true" currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros" [rowHover]="true" dataKey="id">
+                <ng-template pTemplate="caption">
+                    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                        <h5 class="m-0">Gestión de Tableros</h5>
+                        <span class="block mt-2 md:mt-0 p-input-icon-left">
+                            <i class="pi pi-search"></i>
+                        </span>
+                    </div>
+                </ng-template>
+                <ng-template pTemplate="header">
+                    <tr>
+                        <th pSortableColumn="id" class="hide-mobile">ID <p-sortIcon field="id"></p-sortIcon></th>
+                        <th pSortableColumn="title">Nombre <p-sortIcon field="title"></p-sortIcon></th>
+                        <th pSortableColumn="description" class="hide-mobile">Descripción <p-sortIcon field="description"></p-sortIcon></th>
+                        <th pSortableColumn="coordinatorName">Coordinador Asignado <p-sortIcon field="coordinatorName"></p-sortIcon></th>
+                        <th pSortableColumn="status" class="hide-mobile">Estado <p-sortIcon field="status"></p-sortIcon></th>
+                        <th pSortableColumn="createdAt" class="hide-mobile">Fecha Creación <p-sortIcon field="createdAt"></p-sortIcon></th>
+                        <th pSortableColumn="dueDate">Fecha Finalización <p-sortIcon field="dueDate"></p-sortIcon></th>
+                        <th>Acciones</th>
+                    </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-board>
+                    <tr>
+                        <td class="hide-mobile" style="width:10%; min-width:5rem;" [title]="board.id">{{board.id | slice:0:4}}</td>
+                        <td style="width:20%; min-width:10rem;">{{board.title}}</td>
+                        <td class="hide-mobile" style="width:25%; min-width:10rem;">{{board.description}}</td>
+                        <td style="width:15%; min-width:10rem;">{{board.coordinatorName || '-'}}</td>
+                        <td class="hide-mobile" style="width:15%; min-width:10rem;">
+                            <p-tag [value]="board.status" [severity]="getSeverity(board.status)"></p-tag>
+                        </td>
+                        <td class="hide-mobile" style="width:15%; min-width:10rem;">{{board.createdAt | date: 'dd/MM/yyyy HH:mm'}}</td>
+                        <td style="width:15%; min-width:10rem;">{{board.dueDate ? (board.dueDate | date: 'dd/MM/yyyy') : '-'}}</td>
+                        <td>
+                            <div class="flex">
+                                <button pButton pRipple icon="pi pi-external-link" class="p-button-rounded p-button-info mr-2" (click)="viewBoard(board)" pTooltip="Ver Tablero"></button>
+                                <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" (click)="editBoard(board)"></button>
+                                <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="deleteBoard(board)"></button>
+                            </div>
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </div>
+
+        <p-dialog [(visible)]="boardDialog" [style]="{width: '450px'}" header="Detalles del Tablero" [modal]="true" class="p-fluid">
+            <ng-template pTemplate="content">
+                <div class="field">
+                    <label for="title">Nombre</label>
+                    <input type="text" pInputText id="title" [(ngModel)]="board.title" required autofocus [ngClass]="{'ng-invalid ng-dirty' : submitted && !board.title}"/>
+                    <small class="ng-dirty ng-invalid" *ngIf="submitted && !board.title">El nombre es obligatorio.</small>
+                </div>
+                <div class="field">
+                    <label for="description">Descripción</label>
+                    <textarea id="description" pInputTextarea [(ngModel)]="board.description" required rows="3" cols="20"></textarea>
+                </div>
+
+                <div class="field">
+                    <label for="coordinator">Coordinador Asignado</label>
+                    <p-dropdown [(ngModel)]="board.coordinatorId" inputId="coordinator" [options]="coordinators"
+                                placeholder="Seleccionar Coordinador" appendTo="body" [showClear]="true" [filter]="true" filterBy="label">
+                    </p-dropdown>
+                </div>
+
+                <div class="field">
+                    <label for="status">Estado</label>
+                    <p-dropdown [(ngModel)]="board.status" inputId="status" [options]="statuses" placeholder="Seleccionar Estado" appendTo="body">
+                        <ng-template pTemplate="selectedItem">
+                            <p-tag *ngIf="board && board.status" [value]="board.status" [severity]="getSeverity(board.status)"></p-tag>
+                        </ng-template>
+                    </p-dropdown>
+                </div>
+
+                <div class="field">
+                    <label for="dueDate">Fecha de Finalización Aproximada</label>
+                    <p-calendar id="dueDate" [(ngModel)]="board.dueDate" dateFormat="dd/mm/yy" [showIcon]="true" appendTo="body" placeholder="Seleccionar fecha"></p-calendar>
+                </div>
+            </ng-template>
+
+            <ng-template pTemplate="footer">
+                <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+                <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" (click)="saveBoard()"></button>
+            </ng-template>
+        </p-dialog>
+    </div>
+</div>
+
+<p-confirmDialog></p-confirmDialog>

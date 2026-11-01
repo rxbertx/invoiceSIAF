@@ -1,0 +1,40 @@
+<div class="surface-0">
+    <div class="flex align-items-center justify-content-between flex-column h-screen">
+        <div class="flex flex-column align-items-center justify-content-center w-full md:w-4 h-full text-center py-6 px-4">
+            <a [routerLink]="['/']" class="mb-6">
+                <img src="assets/layout/images/logo-ac.png" alt="AC Ingenieria" style="height: 56px; width: auto" />
+            </a>
+            <div class="mb-4">
+                <div class="text-900 text-xl font-bold mb-2">Register</div>
+                <span class="text-600 font-medium">Let's get started</span>
+            </div>
+            <div class="flex flex-column">
+                <span class="p-input-icon-left w-full mb-4">
+                    <i class="pi pi-user"></i>
+                    <input id="username" type="text" pInputText class="w-full md:w-25rem text-color-secondary surface-50 border-200" placeholder="Username" />
+                </span>
+                <span class="p-input-icon-left w-full mb-4">
+                    <i class="pi pi-envelope"></i>
+                    <input id="email" type="text" pInputText class="w-full md:w-25rem text-color-secondary surface-50 border-200" placeholder="Email" />
+                </span>
+                <span class="p-input-icon-left w-full mb-4">
+                    <i class="pi pi-lock z-2"></i>
+                    <p-password id="password" placeholder="Password" [inputStyle]="{ paddingLeft: '2.5rem' }" inputStyleClass="w-full md:w-25rem text-color-secondary surface-50 border-200" [toggleMask]="true"></p-password>
+                </span>
+                <div class="mb-4 flex flex-wrap">
+                    <p-checkbox name="checkbox" value="val" [(ngModel)]="confirmed" styleClass="mr-2" [binary]="true"></p-checkbox>
+                    <label for="checkbox" class="text-900 font-medium mr-2">I have read the</label>
+                    <a class="text-600 cursor-pointer hover:text-primary cursor-pointer">Terms and Conditions</a>
+                </div>
+                <button pButton pRipple label="Sign Up" class="w-full mb-4" [routerLink]="['/']"></button>
+                <span class="font-medium text-600">Already have an account? <a class="font-semibold cursor-pointer text-900 hover:text-primary transition-colors transition-duration-300">Login</a></span>
+            </div>
+        </div>
+        <div class="flex flex-wrap align-items-center pb-8 px-4">
+            <img src="assets/layout/images/logo-ac.png" alt="AC Ingenieria" style="height: 28px; width: auto; margin-right: 1.25rem" />
+            <h6 class="m-0 font-medium text-300">© AC Ingenieria</h6>
+        </div>
+    </div>
+</div>
+
+<app-config [minimal]="true"></app-config>

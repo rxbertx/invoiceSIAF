@@ -1,0 +1,140 @@
+<div class="p-4">
+
+    <!-- Header -->
+    <div class="surface-card border-round-xl p-4 mb-4 flex align-items-center gap-3">
+        <div class="flex align-items-center justify-content-center border-round-lg"
+             style="width:46px;height:46px;background:rgba(99,102,241,0.15)">
+            <i class="pi pi-shield text-primary text-xl"></i>
+        </div>
+        <div>
+            <h4 class="m-0 font-semibold text-900">Administrador de Roles</h4>
+            <p class="m-0 text-500 text-sm">Define los permisos de acceso por rol dentro del sistema</p>
+        </div>
+    </div>
+
+    <div *ngIf="loading" class="text-center py-6">
+        <i class="pi pi-spin pi-spinner text-primary text-4xl"></i>
+    </div>
+
+    <!-- Tabla de permisos -->
+    <div *ngIf="!loading" class="surface-card border-round-xl" style="overflow-x:auto">
+        <table class="w-full rols-table" style="border-collapse:collapse">
+            <thead>
+                <tr class="surface-ground">
+                    <th class="p-3 text-left text-500 text-xs font-semibold uppercase" style="min-width:160px">
+                        Rol
+                    </th>
+                    <th *ngFor="let opt of menuOptions"
+                        class="p-3 text-center text-500 text-xs font-semibold uppercase"
+                        style="min-width:140px">
+                        <div class="flex flex-column align-items-center gap-1">
+                            <i [class]="opt.icon + ' text-primary'"></i>
+                            <span>{{ opt.label }}</span>
+                        </div>
+                    </th>
+                    <th class="p-3 text-center text-500 text-xs font-semibold uppercase" style="min-width:130px">
+                        Acciones
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let row of roles" class="border-top-1 surface-border rol-row">
+
+                    <!-- Rol info -->
+                    <td class="p-3">
+                        <div class="flex align-items-center gap-2">
+                            <div class="border-circle flex align-items-center justify-content-center font-bold text-white text-xs flex-shrink-0"
+                                 [style.background]="getRolColor(row.rol)"
+                                 style="width:34px;height:34px">
+                                {{ row.label.substring(0,2).toUpperCase() }}
+                            </div>
+                            <div>
+                                <p class="m-0 font-semibold text-900 text-sm">{{ row.label }}</p>
+                                <p class="m-0 text-400 text-xs">{{ countEnabled(row) }}/{{ menuOptions.length }} accesos</p>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Checkboxes por opción -->
+                    <td *ngFor="let opt of menuOptions" class="p-3 text-center">
+                        <ng-container *ngIf="row.editing">
+                            <p-checkbox
+                                [(ngModel)]="row.permissions[opt.key]"
+                                [binary]="true"
+                                [disabled]="row.rol === 'ADMIN'"
+                                styleClass="justify-content-center">
+                            </p-checkbox>
+                        </ng-container>
+                        <ng-container *ngIf="!row.editing">
+                            <span *ngIf="row.permissions[opt.key]"
+                                  class="flex align-items-center justify-content-center">
+                                <i class="pi pi-check-circle text-xl" style="color:#10b981"></i>
+                            </span>
+                            <span *ngIf="!row.permissions[opt.key]"
+                                  class="flex align-items-center justify-content-center">
+                                <i class="pi pi-times-circle text-xl text-300"></i>
+                            </span>
+                        </ng-container>
+                    </td>
+
+                    <!-- Acciones -->
+                    <td class="p-3 text-center">
+                        <ng-container *ngIf="!row.editing">
+                            <button pButton pRipple
+                                icon="pi pi-pencil"
+                                class="p-button-rounded p-button-text p-button-sm"
+                                pTooltip="Editar permisos"
+                                (click)="toggleEdit(row)">
+                            </button>
+                        </ng-container>
+                        <ng-container *ngIf="row.editing">
+                            <div class="flex align-items-center justify-content-center gap-1">
+                                <!-- Toggle todos -->
+                                <button pButton pRipple
+                                    [icon]="allEnabled(row) ? 'pi pi-ban' : 'pi pi-check-square'"
+                                    class="p-button-rounded p-button-text p-button-sm p-button-secondary"
+                                    [pTooltip]="allEnabled(row) ? 'Quitar todos' : 'Activar todos'"
+                                    (click)="toggleAll(row, !allEnabled(row))"
+                                    [disabled]="row.rol === 'ADMIN'">
+                                </button>
+                                <button pButton pRipple
+                                    icon="pi pi-check"
+                                    class="p-button-rounded p-button-text p-button-sm p-button-success"
+                                    pTooltip="Guardar"
+                                    [loading]="saving"
+                                    (click)="saveRow(row)">
+                                </button>
+                                <button pButton pRipple
+                                    icon="pi pi-times"
+                                    class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                                    pTooltip="Cancelar"
+                                    (click)="cancelEdit(row)">
+                                </button>
+                            </div>
+                        </ng-container>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Leyenda -->
+    <div class="surface-card border-round-xl p-3 mt-4 flex flex-wrap gap-4 align-items-center">
+        <span class="text-500 text-sm font-medium">Leyenda:</span>
+        <div class="flex align-items-center gap-2">
+            <i class="pi pi-check-circle" style="color:#10b981"></i>
+            <span class="text-sm text-700">Tiene acceso</span>
+        </div>
+        <div class="flex align-items-center gap-2">
+            <i class="pi pi-times-circle text-300"></i>
+            <span class="text-sm text-700">Sin acceso</span>
+        </div>
+        <div class="flex align-items-center gap-2">
+            <i class="pi pi-info-circle text-primary"></i>
+            <span class="text-sm text-700">El rol Administrador tiene acceso total siempre</span>
+        </div>
+    </div>
+
+</div>
+
+<p-toast></p-toast>

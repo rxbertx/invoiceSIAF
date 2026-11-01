@@ -1,0 +1,65 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+            <button pButton pRipple label="Nuevo Usuario" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+        </ng-template>
+    </p-toolbar>
+
+    <p-table [value]="users" responsiveLayout="scroll" [rows]="10" [paginator]="true" [rowHover]="true" dataKey="id">
+        <ng-template pTemplate="header">
+            <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Acciones</th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-user>
+            <tr>
+                <td>{{user.name}}</td>
+                <td>{{user.email}}</td>
+                <td><p-tag [value]="user.role" [severity]="getBadgeSeverity(user.role)"></p-tag></td>
+                <td>
+                    <div class="flex align-items-center gap-2 flex-nowrap">
+                        <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="editUser(user)"></button>
+                        <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="deleteUser(user)"></button>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+
+    <p-dialog [(visible)]="userDialog" [style]="{width: '450px'}" header="Detalles de Usuario" [modal]="true" class="p-fluid">
+        <ng-template pTemplate="content">
+            <div class="field">
+                <label for="name">Nombre</label>
+                <input type="text" pInputText id="name" [(ngModel)]="user.name" required autofocus [ngClass]="{'ng-invalid': submitted && !user.name, 'ng-dirty': submitted && !user.name}"/>
+                <small class="p-error" *ngIf="submitted && !user.name">El nombre es obligatorio.</small>
+            </div>
+            <div class="field">
+                <label for="email">Email</label>
+                <input type="email" pInputText id="email" [(ngModel)]="user.email" required [ngClass]="{'ng-invalid': submitted && !user.email, 'ng-dirty': submitted && !user.email}"/>
+                <small class="p-error" *ngIf="submitted && !user.email">El email es obligatorio.</small>
+            </div>
+            <div class="field" *ngIf="!user.id">
+                <label for="password">Contraseña</label>
+                <input type="password" pInputText id="password" [(ngModel)]="user.password" required [ngClass]="{'ng-invalid ng-dirty' : submitted && !user.password}"/>
+                <small class="p-error" *ngIf="submitted && !user.password">La contraseña es obligatoria.</small>
+            </div>
+            <div class="field">
+                <label for="role">Rol</label>
+                <p-dropdown [(ngModel)]="user.role" inputId="role" [options]="roles" optionLabel="label" optionValue="value" placeholder="Seleccionar Rol" appendTo="body">
+                    <ng-template pTemplate="selectedItem">
+                        <p-tag *ngIf="user && user.role" [value]="user.role" [severity]="getBadgeSeverity(user.role)"></p-tag>
+                    </ng-template>
+                </p-dropdown>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" (click)="saveUser()"></button>
+        </ng-template>
+    </p-dialog>
+    <p-confirmDialog></p-confirmDialog>
+</div>

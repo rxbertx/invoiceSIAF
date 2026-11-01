@@ -1,0 +1,169 @@
+<p-sidebar *ngIf="formValue" #sidebar [(visible)]="parent.sidebarVisible" position="right" [baseZIndex]="10000" styleClass="w-full md:w-8 lg:w-6 xl:w-5" [showCloseIcon]="false">
+    <ng-template pTemplate="content">
+        <form (submit)="onSave($event)">
+            <div class="px-4 py-6 border-bottom-1 surface-border flex align-items-center justify-content-between h-4rem">
+                <input type="text" name="title" [(ngModel)]="formValue.title" pInputText class="w-13rem sm:w-18rem h-3rem text-900 text-lg" placeholder="Sin título" />
+                <div class="flex">
+                    <button pButton pRipple type="button" icon="pi pi-cog" class="p-button-rounded p-button-text p-button-secondary" pTooltip="Acciones" tooltipPosition="left" (click)="op.toggle($event)"></button>
+                    <button pButton pRipple type="button" icon="pi pi-times" class="p-button-rounded p-button-text p-button-secondary" (click)="close()"></button>
+                    <p-overlayPanel #op>
+                        <ng-template pTemplate>
+                            <div class="grid grid-nogutter flex-column gap-5 w-15rem">
+                                <div class="col-12 flex flex-column">
+                                    <span class="text-900 font-semibold block w-full border-bottom-1 surface-border pb-3 mb-2">Mover a...</span>
+                                    <span pRipple class="text-700 block p-2 cursor-pointer hover:surface-ground select-none border-round" *ngFor="let list of listNames" (click)="onMove(list.listId || '')">{{ list.title }}</span>
+                                </div>
+                                <div class="col-12 flex flex-column">
+                                    <span class="text-900 font-semibold block w-full border-bottom-1 surface-border pb-3 mb-2">Tareas</span>
+                                    <span pRipple class="text-700 block p-2 cursor-pointer hover:surface-ground select-none border-round" (click)="addTaskList()">Crear lista de tareas</span>
+                                </div>
+                            </div>
+                        </ng-template>
+                    </p-overlayPanel>
+                </div>
+            </div>
+            <div class="grid grid-nogutter gap-5 pt-5 flex-wrap flex-1 flex flex-column">
+                <div class="col-12 field px-5">
+                    <label for="description" class="block text-900 font-semibold">Descripción</label>
+                    <textarea id="description" name="description" type="text" pInputTextarea [rows]="5" [(ngModel)]="formValue.description" style="resize: none" class="w-full"></textarea>
+                </div>
+                <div class="col-12 px-5 flex gap-5">
+                    <div class="flex flex-column field w-full">
+                        <label for="start" class="block text-900 font-semibold">Fecha Inicio</label>
+                        <span class="p-input-icon-left w-full" style="height: 3.5rem">
+                            <i class="pi pi-clock z-1" style="left: 1.5rem"></i>
+                            <p-calendar
+                                name="startDate"
+                                [appendTo]="sidebar"
+                                dateFormat="dd/mm/yy"
+                                [showTime]="false"
+                                inputId="start"
+                                inputStyleClass="w-full pl-7 text-900 font-semibold"
+                                styleClass="w-full"
+                                [inputStyle]="{ height: '3.5rem' }"
+                                [(ngModel)]="formValue.startDate"
+                            ></p-calendar>
+                        </span>
+                    </div>
+                    <div class="flex flex-column field w-full">
+                        <label for="due" class="block text-900 font-semibold">Fecha Fin</label>
+                        <span class="p-input-icon-left w-full" style="height: 3.5rem">
+                            <i class="pi pi-clock z-1" style="left: 1.5rem"></i>
+                            <p-calendar
+                                name="endDate"
+                                [appendTo]="sidebar"
+                                dateFormat="dd/mm/yy"
+                                [showTime]="false"
+                                inputId="due"
+                                inputStyleClass="w-full pl-7 text-900 font-semibold"
+                                styleClass="w-full"
+                                [inputStyle]="{ height: '3.5rem' }"
+                                [(ngModel)]="formValue.dueDate"
+                            ></p-calendar>
+                        </span>
+                    </div>
+                </div>
+
+                <div *ngIf="formValue.taskList.tasks.length || showTaskContainer" class="col-12 flex flex-column px-5">
+                    <div class="flex justify-content-between mb-3">
+                        <span class="text-900 font-semibold">Progreso</span>
+                        <span class="text-900 font-semibold">{{ formValue.progress }}%</span>
+                    </div>
+                    <p-progressBar name="progress" [value]="formValue.progress" [showValue]="false"></p-progressBar>
+                </div>
+
+                <div *ngIf="formValue.taskList.tasks.length || showTaskContainer" class="col-12 flex flex-column px-5">
+                    <div class="h-4rem -mb-4">
+                        <p-inplace #inplace2 [closable]="true" closeIcon="pi pi-check" styleClass="h-4rem" (onActivate)="focus(2)">
+                            <ng-template pTemplate="display">
+                                <span class="block text-900 font-semibold text-lg mt-3" pTooltip="Clic para editar" tooltipPosition="left">{{ formValue.taskList.title }}</span>
+                            </ng-template>
+                            <ng-template pTemplate="content">
+                                <input #inputTaskListTitle type="text" name="title" [(ngModel)]="formValue.taskList.title" pInputText class="w-20rem h-3rem text-900 mt-2 text-lg" (keydown.enter)="inplace2.deactivate()" />
+                            </ng-template>
+                        </p-inplace>
+                    </div>
+                    <div class="flex align-items-center gap-2 mt-4">
+                        <textarea type="text" pInputTextarea name="taskContent" [(ngModel)]="taskContent" [rows]="1" style="resize: none" class="w-full" placeholder="Agregar tarea" (keydown.enter)="addTask($event)"></textarea>
+                        <button pButton pRipple type="button" icon="pi pi-send" class="p-button-rounded p-button-outlined flex-shrink-0" (click)="addTask($event)"></button>
+                    </div>
+
+                    <ul *ngIf="formValue.taskList?.tasks?.length !== 0" class="list-none p-4 flex flex-column gap-3 surface-ground surface-border border-1 border-round">
+                        <li class="flex align-items-start gap-3" *ngFor="let task of formValue.taskList?.tasks; let i = index">
+                            <p-checkbox [name]="task.text + i" [(ngModel)]="task.completed" [binary]="true" [inputId]="task.text" (onChange)="calculateProgress()"></p-checkbox>
+                            <span style="word-break: break-all" [ngClass]="{ 'text-600 line-through': task.completed, 'text-900': !task.completed }">
+                                {{ task.text }}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="col-12 flex flex-column field px-5">
+                    <label for="assignees" class="block text-900 font-semibold mb-3">Asignados</label>
+                    <p-autoComplete
+                        [appendTo]="sidebar"
+                        name="assignees"
+                        [(ngModel)]="formValue.assignees"
+                        [suggestions]="filteredAssignees"
+                        (completeMethod)="filterAssignees($event)"
+                        field="name"
+                        [multiple]="true"
+                        [showEmptyMessage]="true"
+                        emptyMessage="Sin resultados"
+                        placeholder="Seleccionar asignados"
+                        [inputStyle]="{ height: '2.5rem' }"
+                    >
+                        <ng-template let-assignee pTemplate="selectedItem">
+                            <div class="flex align-items-center gap-2 border-round">
+                                <p-avatar *ngIf="!assignee.image" icon="pi pi-user" shape="circle" size="normal"></p-avatar>
+                                <img *ngIf="assignee.image" [src]="assignee.image" [alt]="assignee.name" class="h-2rem w-2rem border-2 border-circle surface-border" />
+                                <span class="text-900">{{ assignee.name }}</span>
+                            </div>
+                        </ng-template>
+                        <ng-template let-assignee pTemplate="item">
+                            <div class="flex align-items-center gap-2 border-round">
+                                <p-avatar *ngIf="!assignee.image" icon="pi pi-user" shape="circle" size="normal"></p-avatar>
+                                <img *ngIf="assignee.image" [src]="assignee.image" [alt]="assignee.name" class="h-2rem w-2rem border-2 border-circle surface-border" />
+                                <span class="text-900">{{ assignee.name }}</span>
+                            </div>
+                        </ng-template>
+                    </p-autoComplete>
+                </div>
+
+                <div class="col-12 flex flex-column row-gap-3 px-5 mb-6">
+                    <span class="block text-900 font-semibold">Comentarios</span>
+
+                    <!-- Input nuevo comentario -->
+                    <div class="flex align-items-center gap-2">
+                        <p-avatar *ngIf="currentUser?.image" [image]="currentUser.image" shape="circle" size="large" styleClass="flex-shrink-0"></p-avatar>
+                        <p-avatar *ngIf="!currentUser?.image" icon="pi pi-user" shape="circle" size="large" styleClass="flex-shrink-0"></p-avatar>
+                        <textarea pInputTextarea name="comment" [(ngModel)]="comment" [rows]="2" style="resize: none" class="w-full" placeholder="Escribe un comentario..."></textarea>
+                        <button pButton pRipple type="button" icon="pi pi-send" class="p-button-rounded p-button-outlined flex-shrink-0" (click)="onComment()"></button>
+                    </div>
+
+                    <!-- Lista de comentarios -->
+                    <div *ngIf="formValue.coments && formValue.coments.length > 0" class="flex flex-column gap-3 mt-2">
+                        <div *ngFor="let item of formValue.coments" class="flex align-items-start gap-2 p-3 border-1 surface-border border-round surface-ground">
+                            <p-avatar *ngIf="item.image" [image]="item.image" shape="circle" size="normal" styleClass="flex-shrink-0"></p-avatar>
+                            <p-avatar *ngIf="!item.image" icon="pi pi-user" shape="circle" size="normal" styleClass="flex-shrink-0"></p-avatar>
+                            <div class="w-full">
+                                <div class="flex justify-content-between mb-1">
+                                    <span class="text-900 font-semibold text-sm">{{ item.name }}</span>
+                                    <span class="text-600 text-xs">{{ formatCommentDate(item.date) }}</span>
+                                </div>
+                                <span class="text-900 text-sm" style="word-break: break-all">{{ item.text }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <span *ngIf="!formValue.coments || formValue.coments.length === 0" class="text-600 text-sm">Sin comentarios aún.</span>
+                </div>
+            </div>
+            <div class="flex w-full justify-content-end border-top-1 surface-border py-5 px-5 gap-3">
+                <button pButton pRipple type="button" icon="pi pi-paperclip" class="p-button-outlined p-button-secondary surface-border text-900 w-3rem h-3rem"></button>
+                <button pButton pRipple type="button" icon="pi pi-trash" class="p-button-outlined p-button-secondary surface-border text-900 w-3rem h-3rem" (click)="onDelete()"></button>
+                <button pButton pRipple type="submit" icon="pi pi-check" label="Guardar" class="p-button-primary h-3rem"></button>
+            </div>
+        </form>
+    </ng-template>
+</p-sidebar>

@@ -1,0 +1,53 @@
+<div [id]="card.id" class="flex surface-card flex-column w-full border-round p-3 gap-5 hover:surface-ground cursor-pointer">
+    <div class="flex justify-content-between align-items-center">
+        <p-inplace [active]="false" class="w-full">
+            <ng-template pTemplate="display">
+                <div style="word-break: break-word" class="text-900 font-semibold">{{ card.title || 'Sin título' }}</div>
+            </ng-template>
+            <ng-template pTemplate="content">
+                <input type="text" pInputText [(ngModel)]="card.title" (blur)="saveCard()" (keydown.enter)="saveCard()" autofocus class="w-full" />
+            </ng-template>
+        </p-inplace>
+        <div>
+            <button pButton pRipple type="button" icon="pi pi-ellipsis-v" class="p-button-rounded p-button-text p-button-secondary p-trigger" (click)="menu.toggle($event)"></button>
+            <p-tieredMenu #menu [model]="menuItems" appendTo="body" [popup]="true" styleClass="kanban-card-menu"></p-tieredMenu>
+        </div>
+    </div>
+    <p-inplace [active]="false">
+        <ng-template pTemplate="display">
+            <div style="word-break: break-word" [ngClass]="{'text-700': card.description, 'text-400 italic': !card.description}">
+                {{ card.description || 'Añadir descripción...' }}
+            </div>
+        </ng-template>
+        <ng-template pTemplate="content">
+            <textarea pInputTextarea [(ngModel)]="card.description" (blur)="saveCard()" rows="3" style="width: 100%" autofocus></textarea>
+        </ng-template>
+    </p-inplace>
+    <p-progressBar *ngIf="card.taskList.tasks.length" [value]="card.progress" [showValue]="false" [style]="{ height: '.5rem' }"></p-progressBar>
+
+    <div class="flex align-items-center justify-content-between flex-column md:flex-row gap-4 md:gap-0">
+        <p-avatarGroup>
+            <p-avatar *ngFor="let assignee of card.assignees | slice : 0 : 3"
+                [label]="getInitials(assignee.name)"
+                shape="circle"
+                styleClass="border-2 surface-border font-bold text-white"
+                [style]="{ background: getAvatarColor(assignee.name), color: '#fff' }">
+            </p-avatar>
+            <p-avatar *ngIf="card.assignees && card.assignees.length > 3"
+                label="+{{ card.assignees.length - 3 }}"
+                shape="circle"
+                styleClass="border-2 surface-border surface-ground">
+            </p-avatar>
+        </p-avatarGroup>
+        <div *ngIf="card.attachments || card.dueDate" class="flex align-items-center gap-3">
+            <span class="text-900 font-semibold" *ngIf="card.taskList.tasks.length"><i class="pi pi-check-square text-700 mr-2"></i>{{ generateTaskInfo() }}</span>
+            <span class="text-900 font-semibold" *ngIf="card.attachments"><i class="pi pi-paperclip text-700 mr-2"></i>{{ card.attachments }}</span>
+            <span *ngIf="card.dueDate" class="flex flex-column align-items-end gap-1">
+                <span class="text-900 font-semibold"><i class="pi pi-clock text-700 mr-2"></i>{{ parseDate(card.dueDate) }}</span>
+                <span *ngIf="completionStatus() === 'on-time'" class="text-xs font-medium" style="color:#10b981">✓ A tiempo</span>
+                <span *ngIf="completionStatus() === 'late'" class="text-xs font-medium" style="color:#ef4444">✗ Fuera de tiempo</span>
+                <span *ngIf="completionStatus() === 'overdue'" class="text-xs font-medium" style="color:#ef4444">⚠ Vencida</span>
+            </span>
+        </div>
+    </div>
+</div>

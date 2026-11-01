@@ -1,0 +1,120 @@
+<div class="p-4">
+
+    <!-- Header -->
+    <div class="surface-card border-round-xl p-4 mb-4 flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="flex align-items-center gap-3">
+            <div class="flex align-items-center justify-content-center border-round-lg"
+                 style="width:46px;height:46px;background:rgba(99,102,241,0.15)">
+                <i class="pi pi-envelope text-primary text-xl"></i>
+            </div>
+            <div>
+                <h4 class="m-0 font-semibold text-900">Configuración de Correo (SMTP)</h4>
+                <p class="m-0 text-500 text-sm">Parámetros del servidor para el envío de notificaciones por correo</p>
+            </div>
+        </div>
+        <button pButton pRipple label="Usar valores de Gmail" icon="pi pi-google" class="p-button-outlined" (click)="applyGmailDefaults()"></button>
+    </div>
+
+    <div *ngIf="loading" class="text-center py-6">
+        <i class="pi pi-spin pi-spinner text-primary text-4xl"></i>
+    </div>
+
+    <div *ngIf="!loading" class="grid">
+
+        <!-- Servidor -->
+        <div class="col-12 lg:col-8">
+            <div class="surface-card border-round-xl p-4 h-full">
+                <h5 class="mt-0 mb-4 font-semibold text-900"><i class="pi pi-server mr-2 text-primary"></i>Servidor</h5>
+                <div class="p-fluid formgrid grid">
+                    <div class="field col-12 md:col-8">
+                        <label for="host">Servidor SMTP (host) *</label>
+                        <input id="host" type="text" pInputText [(ngModel)]="form.host" placeholder="smtp.gmail.com" />
+                    </div>
+                    <div class="field col-12 md:col-4">
+                        <label for="port">Puerto *</label>
+                        <p-dropdown inputId="port" [(ngModel)]="form.port" [options]="portOptions" [editable]="true" (onChange)="onPortChange()" appendTo="body"></p-dropdown>
+                    </div>
+                    <div class="field col-12">
+                        <div class="flex align-items-center gap-2">
+                            <p-inputSwitch inputId="secure" [(ngModel)]="form.secure"></p-inputSwitch>
+                            <label for="secure" class="mb-0">Conexión segura (SSL). Para el puerto 587 déjalo apagado, se usa STARTTLS</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12"><div class="border-top-1 surface-border my-3"></div></div>
+
+                    <div class="field col-12 md:col-6">
+                        <label for="user">Usuario (correo) *</label>
+                        <input id="user" type="email" pInputText [(ngModel)]="form.user" placeholder="micuenta@gmail.com" />
+                    </div>
+                    <div class="field col-12 md:col-6">
+                        <label for="pass">Contraseña de aplicación {{ hasPassword ? '' : '*' }}</label>
+                        <p-password inputId="pass" [(ngModel)]="form.pass" [feedback]="false" [toggleMask]="true"
+                                    [placeholder]="hasPassword ? '•••••••• (guardada — llenar solo para cambiarla)' : 'Contraseña de aplicación de Gmail'"></p-password>
+                        <small class="text-500">Para Gmail usa una <b>contraseña de aplicación</b> (no tu contraseña normal), generada en tu cuenta de Google con verificación en 2 pasos activa.</small>
+                    </div>
+
+                    <div class="col-12"><div class="border-top-1 surface-border my-3"></div></div>
+
+                    <div class="field col-12 md:col-6">
+                        <label for="fromName">Nombre del remitente</label>
+                        <input id="fromName" type="text" pInputText [(ngModel)]="form.fromName" placeholder="Tablero de Proyectos" />
+                    </div>
+                    <div class="field col-12 md:col-6">
+                        <label for="fromEmail">Correo del remitente</label>
+                        <input id="fromEmail" type="email" pInputText [(ngModel)]="form.fromEmail" placeholder="Si se deja vacío se usa el usuario" />
+                    </div>
+
+                    <div class="col-12"><div class="border-top-1 surface-border my-3"></div></div>
+
+                    <div class="field col-12 md:col-6">
+                        <label for="notifyDays">Días de anticipación para avisos de vencimiento</label>
+                        <input id="notifyDays" type="number" min="0" max="60" pInputText [(ngModel)]="form.notifyDaysBefore" />
+                        <small class="text-500">Se avisa a los responsables cuando a una tarea le falten estos días (o menos) para vencer. 0 = avisar solo el mismo día.</small>
+                    </div>
+
+                    <div class="field col-12">
+                        <div class="flex align-items-center gap-2">
+                            <p-inputSwitch inputId="enabled" [(ngModel)]="form.enabled"></p-inputSwitch>
+                            <label for="enabled" class="mb-0">Habilitar el envío de notificaciones por correo</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-content-end mt-3">
+                    <button pButton pRipple label="Guardar Configuración" icon="pi pi-save" [loading]="saving" (click)="save()"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prueba de envío -->
+        <div class="col-12 lg:col-4">
+            <div class="surface-card border-round-xl p-4 h-full">
+                <h5 class="mt-0 mb-4 font-semibold text-900"><i class="pi pi-send mr-2 text-primary"></i>Probar Envío</h5>
+                <p class="text-500 text-sm mt-0 mb-3">Envía un correo de prueba con la configuración guardada para verificar que todo funciona.</p>
+                <div class="p-fluid">
+                    <div class="field">
+                        <label for="testEmail">Enviar prueba a</label>
+                        <input id="testEmail" type="email" pInputText [(ngModel)]="testEmail" placeholder="destino@correo.com" (keyup.enter)="sendTest()" />
+                    </div>
+                </div>
+                <button pButton pRipple label="Enviar Correo de Prueba" icon="pi pi-send" class="p-button-outlined w-full" [loading]="testing" (click)="sendTest()"></button>
+
+                <button pButton pRipple label="Revisar Vencimientos Ahora" icon="pi pi-clock" class="p-button-outlined p-button-secondary w-full mt-2" [loading]="checkingDue" (click)="runDueCheck()"
+                        pTooltip="Ejecuta de inmediato la revisión que normalmente corre cada hora" tooltipPosition="top"></button>
+
+                <div class="surface-ground border-round-lg p-3 mt-4">
+                    <p class="m-0 text-sm text-700"><i class="pi pi-info-circle text-primary mr-2"></i><b>Valores recomendados para Gmail:</b></p>
+                    <ul class="text-sm text-600 mt-2 mb-0 pl-4">
+                        <li>Servidor: smtp.gmail.com</li>
+                        <li>Puerto: 465 con SSL (o 587 con STARTTLS)</li>
+                        <li>Usuario: tu dirección de Gmail completa</li>
+                        <li>Contraseña: una contraseña de aplicación de 16 caracteres</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p-toast></p-toast>

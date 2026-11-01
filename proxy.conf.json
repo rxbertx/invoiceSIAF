@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "https://tablero-backend-70lz.onrender.com",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

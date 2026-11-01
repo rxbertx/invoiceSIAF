@@ -1,0 +1,63 @@
+<div class="layout-topbar">
+    <div class="topbar-start">
+        <button #menubutton type="button" class="topbar-menubutton p-link p-trigger transition-duration-300" (click)="onMenuButtonClick()">
+            <i class="pi pi-bars"></i>
+        </button>
+    </div>
+    <div class="layout-topbar-menu-section">
+        <app-sidebar></app-sidebar>
+    </div>
+    <div class="topbar-end">
+        <ul class="topbar-menu">
+            <li class="topbar-item">
+                <a pStyleClass="@next" enterClass="ng-hidden" enterActiveClass="px-scalein" leaveToClass="ng-hidden" leaveActiveClass="px-fadeout" [hideOnOutsideClick]="true" pRipple class="cursor-pointer flex align-items-center gap-2">
+                    <!-- Saludo + rol -->
+                    <div class="hidden sm:flex flex-column align-items-end">
+                        <span class="text-900 font-semibold text-sm line-height-1">
+                            Bienvenido, {{ currentUser?.name || 'Usuario' }}
+                        </span>
+                        <span class="text-500 text-xs line-height-1 mt-1">
+                            {{ currentUser?.role || 'Sin rol' }}
+                        </span>
+                    </div>
+                    <!-- Avatar con iniciales -->
+                    <div class="flex align-items-center justify-content-center border-circle font-bold text-white text-sm flex-shrink-0"
+                         style="width:36px;height:36px;background:#6366f1;user-select:none">
+                        {{ userInitials }}
+                    </div>
+                </a>
+                <ul [class]="'topbar-menu active-topbar-menu p-4 w-15rem z-5 ng-hidden'">
+                    <!-- Info usuario en el dropdown -->
+                    <li class="m-0 mb-3 pb-3 border-bottom-1 surface-border">
+                        <div class="flex align-items-center gap-2">
+                            <div class="flex align-items-center justify-content-center border-circle font-bold text-white text-sm flex-shrink-0"
+                                 style="width:36px;height:36px;background:#6366f1">
+                                {{ userInitials }}
+                            </div>
+                            <div class="flex flex-column">
+                                <span class="text-900 font-semibold text-sm">{{ currentUser?.name }}</span>
+                                <span class="text-500 text-xs">{{ currentUser?.role }}</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li role="menuitem" class="m-0">
+                        <a class="flex align-items-center hover:text-primary-500 transition-duration-200 cursor-pointer" (click)="onLogout()">
+                            <i class="pi pi-fw pi-sign-out mr-2"></i>
+                            <span>Cerrar sesión</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <!-- Botón de ajustes oculto temporalmente
+            <li class="">
+                <button pButton type="button" icon="pi pi-cog" class="p-button-text p-button-secondary flex-shrink-0" (click)="onConfigButtonClick()"></button>
+            </li>
+            -->
+            <!-- Botón de noticias (sidebar derecho) oculto temporalmente
+            <li class="">
+                <button pButton type="button" icon="pi pi-arrow-left" class="p-button-text p-button-secondary flex-shrink-0" (click)="onSidebarButtonClick()"></button>
+            </li>
+            -->
+        </ul>
+    </div>
+</div>

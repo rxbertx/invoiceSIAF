@@ -1,0 +1,311 @@
+<div class="kpi-page p-4">
+
+    <!-- Selector de Proyecto -->
+    <div class="mb-4 flex flex-column sm:flex-row align-items-start sm:align-items-center gap-3">
+        <label class="font-medium text-700">Proyecto:</label>
+        <p-dropdown
+            [options]="boards"
+            [(ngModel)]="selectedBoard"
+            optionLabel="title"
+            placeholder="Selecciona un tablero"
+            (onChange)="onBoardChange()"
+            styleClass="w-full sm:w-20rem">
+        </p-dropdown>
+        <span *ngIf="loading" class="pi pi-spin pi-spinner text-primary text-xl ml-0 sm:ml-2"></span>
+    </div>
+
+    <ng-container *ngIf="selectedBoard && !loading">
+
+        <!-- ===== PANEL DE CONTROL ===== -->
+        <div class="kpi-panel surface-card border-round-xl p-4 mb-4">
+            <div class="flex flex-column sm:flex-row align-items-start sm:align-items-center justify-content-between mb-4 gap-3">
+                <div class="flex align-items-center gap-3 w-full sm:w-auto">
+                    <div class="kpi-panel-icon border-round-lg flex align-items-center justify-content-center"
+                         style="width:42px;height:42px;background:rgba(99,102,241,0.15)">
+                        <i class="pi pi-chart-bar text-primary text-xl"></i>
+                    </div>
+                    <div>
+                        <h5 class="m-0 font-semibold text-900">Panel de Control</h5>
+                        <p class="m-0 text-500 text-sm">Resumen general del tablero · {{ totalCards }} tarjetas</p>
+                    </div>
+                </div>
+                <!-- Fecha de vencimiento aproximada (semáforo) -->
+                <div *ngIf="selectedBoard?.dueDate" class="flex align-items-center gap-3 border-round-lg px-3 py-2 w-full sm:w-auto"
+                     [style.background]="vencimientoColor + '18'"
+                     [style.border]="'1px solid ' + vencimientoColor + '55'">
+                    <div class="flex align-items-center justify-content-center border-circle flex-shrink-0"
+                         [style.background]="vencimientoColor" style="width:38px;height:38px">
+                        <i class="pi pi-calendar-times text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="m-0 text-500 text-xs uppercase font-medium">Vencimiento aproximado</p>
+                        <p class="m-0 font-bold" [style.color]="vencimientoColor">
+                            {{ selectedBoard.dueDate | date:'dd/MM/yyyy' }}
+                        </p>
+                        <p class="m-0 text-xs font-medium" [style.color]="vencimientoColor">{{ vencimientoLabel }}</p>
+                    </div>
+                </div>
+
+                <!-- Avance general circular -->
+                <div class="flex align-items-center gap-3 w-full sm:w-auto">
+                    <div class="progress-ring-wrap">
+                        <svg width="90" height="90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-200)" stroke-width="10"/>
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="#6366f1" stroke-width="10"
+                                stroke-dasharray="264"
+                                [attr.stroke-dashoffset]="264 - (264 * progressPercent / 100)"
+                                stroke-linecap="round"
+                                transform="rotate(-90 50 50)"/>
+                            <text x="50" y="50" text-anchor="middle" dominant-baseline="middle"
+                                  fill="var(--text-color)" font-size="18" font-weight="bold">{{ progressPercent }}%</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="m-0 font-semibold text-900">Avance general</p>
+                        <p class="m-0 text-500 text-sm">{{ completedCards }} de {{ totalCards }} completadas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjetas de estadísticas -->
+            <div class="grid">
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #6366f1">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(99,102,241,0.12);flex-shrink:0">
+                            <i class="pi pi-credit-card" style="color:#6366f1;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ totalCards }}</p>
+                            <p class="m-0 text-500 text-sm">Total tarjetas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #10b981">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(16,185,129,0.12);flex-shrink:0">
+                            <i class="pi pi-check-circle" style="color:#10b981;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ completedCards }}</p>
+                            <p class="m-0 text-500 text-sm">Completadas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #f59e0b">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(245,158,11,0.12);flex-shrink:0">
+                            <i class="pi pi-inbox" style="color:#f59e0b;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ pendingCards }}</p>
+                            <p class="m-0 text-500 text-sm">Pendientes</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #06b6d4">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(6,182,212,0.12);flex-shrink:0">
+                            <i class="pi pi-circle" style="color:#06b6d4;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ inProgressCards }}</p>
+                            <p class="m-0 text-500 text-sm">En proceso</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #f97316">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(249,115,22,0.12);flex-shrink:0">
+                            <i class="pi pi-exclamation-triangle" style="color:#f97316;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ overdueCards }}</p>
+                            <p class="m-0 text-500 text-sm">Vencidas sin cerrar</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #f59e0b">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(245,158,11,0.12);flex-shrink:0">
+                            <i class="pi pi-calendar" style="color:#f59e0b;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ withDueDateCards }}</p>
+                            <p class="m-0 text-500 text-sm">Con fecha límite</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #f59e0b">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(245,158,11,0.12);flex-shrink:0">
+                            <i class="pi pi-clock" style="color:#f59e0b;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ completedLateCards }}</p>
+                            <p class="m-0 text-500 text-sm">Completadas fuera de tiempo</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <div class="stat-card surface-ground border-round-lg p-3 flex align-items-center gap-3" style="border-left:4px solid #ef4444">
+                        <div class="stat-icon flex align-items-center justify-content-center border-round-lg"
+                             style="width:44px;height:44px;background:rgba(239,68,68,0.12);flex-shrink:0">
+                            <i class="pi pi-ban" style="color:#ef4444;font-size:1.3rem"></i>
+                        </div>
+                        <div>
+                            <p class="m-0 text-3xl font-bold text-900">{{ stoppedCards }}</p>
+                            <p class="m-0 text-500 text-sm">Detenidas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== KPI POR MIEMBRO ===== -->
+        <div class="kpi-panel surface-card border-round-xl p-4">
+            <div class="flex align-items-center justify-content-between mb-4">
+                <div class="flex align-items-center gap-3">
+                    <div class="kpi-panel-icon border-round-lg flex align-items-center justify-content-center"
+                         style="width:42px;height:42px;background:rgba(99,102,241,0.15)">
+                        <i class="pi pi-users text-primary text-xl"></i>
+                    </div>
+                    <div>
+                        <h5 class="m-0 font-semibold text-900">KPI por miembro</h5>
+                        <p class="m-0 text-500 text-sm">Desempeño individual del equipo</p>
+                    </div>
+                </div>
+                <span class="member-count-badge border-round-xl px-3 py-1 font-medium text-sm"
+                      style="background:rgba(99,102,241,0.15);color:#6366f1">
+                    {{ memberStats.length }} miembros
+                </span>
+            </div>
+
+            <div *ngIf="memberStats.length === 0" class="text-center text-500 py-5">
+                <i class="pi pi-inbox text-4xl mb-3 block"></i>
+                <p>No hay miembros asignados en este tablero</p>
+            </div>
+
+            <div *ngIf="memberStats.length > 0" class="kpi-table-wrap">
+                <table class="kpi-table w-full">
+                    <thead>
+                        <tr class="surface-ground">
+                            <th class="text-left p-3 text-500 text-xs font-semibold uppercase border-round-tl-lg">Miembro</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">Asignadas</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">Colaboraciones</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">Completadas</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">Pendientes</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">En Proceso</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase">Detenidas</th>
+                            <th class="text-center p-3 text-500 text-xs font-semibold uppercase border-round-tr-lg">Completadas Fuera de Tiempo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let member of memberStats" class="member-row border-top-1 surface-border">
+                            <!-- Miembro -->
+                            <td class="p-3">
+                                <div class="flex align-items-center gap-3">
+                                    <img *ngIf="member.image"
+                                         [src]="member.image"
+                                         class="border-circle flex-shrink-0"
+                                         style="width:38px;height:38px;object-fit:cover" />
+                                    <div *ngIf="!member.image"
+                                         class="avatar-initials border-circle flex align-items-center justify-content-center flex-shrink-0 font-bold text-white text-sm"
+                                         [style.background]="member.color"
+                                         style="width:38px;height:38px">
+                                        {{ member.initials }}
+                                    </div>
+                                    <div>
+                                        <p class="m-0 font-semibold text-900 text-sm">{{ member.name }}</p>
+                                        <div class="flex align-items-center gap-2 mt-1">
+                                            <div class="progress-bar-track border-round" style="width:80px;height:5px;background:var(--surface-200)">
+                                                <div class="progress-bar-fill border-round"
+                                                     [style.width]="member.completedPercent + '%'"
+                                                     [style.background]="member.color"
+                                                     style="height:5px"></div>
+                                            </div>
+                                            <span class="text-500 text-xs">{{ member.completedPercent }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Asignadas -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(99,102,241,0.15);color:#6366f1">
+                                    {{ member.assigned }}
+                                </span>
+                            </td>
+
+                            <!-- Colaboraciones -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:var(--surface-200);color:var(--text-color-secondary)">
+                                    {{ member.collaborations }}
+                                </span>
+                            </td>
+
+                            <!-- Completadas -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(16,185,129,0.15);color:#10b981">
+                                    {{ member.completed }}
+                                </span>
+                            </td>
+
+                            <!-- Pendientes -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(245,158,11,0.15);color:#f59e0b">
+                                    {{ member.pending }}
+                                </span>
+                            </td>
+
+                            <!-- En Proceso -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(6,182,212,0.15);color:#06b6d4">
+                                    {{ member.inProgress }}
+                                </span>
+                            </td>
+
+                            <!-- Detenidas -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(239,68,68,0.15);color:#ef4444">
+                                    {{ member.stopped }}
+                                </span>
+                            </td>
+
+                            <!-- Completadas Fuera de Tiempo -->
+                            <td class="p-3 text-center">
+                                <span class="kpi-badge"
+                                      style="background:rgba(249,115,22,0.15);color:#f97316">
+                                    {{ member.overdue }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </ng-container>
+
+    <!-- Empty state -->
+    <ng-container *ngIf="!selectedBoard && !loading">
+        <div class="surface-card border-round-xl p-6 text-center">
+            <i class="pi pi-chart-bar text-5xl text-300 mb-3 block"></i>
+            <h5 class="text-700 mb-2">Selecciona un proyecto</h5>
+            <p class="text-500 m-0">Elige un tablero para visualizar sus estadísticas KPI</p>
+        </div>
+    </ng-container>
+
+</div>

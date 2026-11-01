@@ -1,0 +1,42 @@
+<p-toast></p-toast>
+
+<!-- Nombre del proyecto en gestión -->
+<div *ngIf="boardTitle" class="flex align-items-center gap-2 mb-3">
+    <i class="pi pi-folder text-primary text-xl"></i>
+    <h4 class="m-0 font-semibold text-900">{{ boardTitle }}</h4>
+</div>
+
+<div
+    id="kanban-wrapper"
+    cdkDropListGroup
+    cdkDropList
+    cdkDropListOrientation="horizontal"
+    (cdkDropListDropped)="dropList($event)"
+    [cdkDropListData]="lists"
+    class="grid grid-nogutter w-full flex-column md:flex-row flex-nowrap gap-5 lg:overflow-y-hidden overflow-x-auto"
+>
+    <app-kanban-list *ngFor="let list of lists; let i = index" [list]="list" [listIds]="listIds" (onCardDrop)="onCardDrop($event, list.listId)" cdkDrag cdkDragHandle [cdkDragDisabled]="isMobileDevice" class="p-kanban-list"></app-kanban-list>
+    
+    <div *ngIf="lists.length === 0" class="flex flex-column align-items-center justify-content-center w-full pb-5">
+        <i class="pi pi-folder-open text-500 text-6xl mb-3"></i>
+        <span class="text-500 font-medium">Este tablero no tiene listas asignadas.</span>
+    </div>
+
+    <div class="px-3 py-1 mb-3 md:w-25rem flex-shrink-0">
+        <button pButton pRipple label="Nuevo Estatus" icon="pi pi-plus font-semibold" class="py-3 justify-content-center font-semibold w-full border-round" (click)="addList()"></button>
+    </div>
+    <app-kanban-sidebar></app-kanban-sidebar>
+
+    <p-dialog [(visible)]="listDialog" [style]="{width: '400px'}" header="Nueva Lista" [modal]="true" class="p-fluid">
+        <ng-template pTemplate="content">
+            <div class="field">
+                <label for="listName">Nombre de la lista</label>
+                <input type="text" pInputText id="listName" [(ngModel)]="listName" (keyup.enter)="saveList(listName)" required autofocus />
+            </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="listDialog = false"></button>
+            <button pButton pRipple label="Crear" icon="pi pi-check" class="p-button-text" (click)="saveList(listName)" [disabled]="!listName.trim()"></button>
+        </ng-template>
+    </p-dialog>
+</div>
