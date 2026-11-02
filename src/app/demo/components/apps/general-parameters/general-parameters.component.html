@@ -1,0 +1,207 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+            <button pButton pRipple label="Nueva Empresa" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+        </ng-template>
+    </p-toolbar>
+
+    <p-table
+        #dt
+        [value]="items"
+        [loading]="loading"
+        [rows]="10"
+        [paginator]="true"
+        [rowHover]="true"
+        responsiveLayout="scroll"
+        dataKey="id"
+        [globalFilterFields]="['companyCode', 'companyName', 'nit', 'tradeName', 'email']"
+    >
+        <ng-template pTemplate="caption">
+            <div class="flex align-items-center justify-content-between">
+                <h5 class="m-0">Parámetros Generales</h5>
+                <span class="p-input-icon-left">
+                    <i class="pi pi-search"></i>
+                    <input pInputText type="text" placeholder="Buscar..." (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+                </span>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="header">
+            <tr>
+                <th pSortableColumn="companyCode">Código <p-sortIcon field="companyCode"></p-sortIcon></th>
+                <th pSortableColumn="companyName">Empresa <p-sortIcon field="companyName"></p-sortIcon></th>
+                <th>Nombre comercial</th>
+                <th>NIT</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th>Ambiente</th>
+                <th>Acciones</th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+            <tr>
+                <td>{{ row.companyCode }}</td>
+                <td>{{ row.companyName }}</td>
+                <td>{{ row.tradeName }}</td>
+                <td>{{ row.nit }}</td>
+                <td>{{ row.email }}</td>
+                <td>{{ row.phone }}</td>
+                <td>{{ labelOf(environments, row.environment) }}</td>
+                <td>
+                    <div class="flex align-items-center gap-2 flex-nowrap">
+                        <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="edit(row)"></button>
+                        <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="remove(row)"></button>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="text-center">No hay empresas registradas.</td></tr>
+        </ng-template>
+    </p-table>
+
+    <p-dialog [(visible)]="dialog" [style]="{ width: '900px' }" [breakpoints]="{ '960px': '95vw' }" header="Parámetros Generales de la Empresa" [modal]="true" styleClass="p-fluid">
+        <ng-template pTemplate="content">
+            <p-tabView [(activeIndex)]="activeTab">
+                <p-tabPanel header="Info. Empresa">
+                    <div class="grid">
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="companyCode">Código empresa</label>
+                                <input pInputText id="companyCode" [ngModel]="item.companyCode" [disabled]="true" [placeholder]="item.id ? '' : 'Se asigna automáticamente'" />
+                            </div>
+                            <div class="field">
+                                <label for="companyName">Nombre empresa *</label>
+                                <textarea pInputTextarea id="companyName" rows="3" [(ngModel)]="item.companyName" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('companyName') }"></textarea>
+                                <small class="p-error" *ngIf="isInvalid('companyName')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="nit">NIT *</label>
+                                <input pInputText id="nit" [(ngModel)]="item.nit" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('nit') }" />
+                                <small class="p-error" *ngIf="isInvalid('nit')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="registration">Registro *</label>
+                                <input pInputText id="registration" [(ngModel)]="item.registration" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('registration') }" />
+                                <small class="p-error" *ngIf="isInvalid('registration')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="address">Dirección *</label>
+                                <textarea pInputTextarea id="address" rows="5" [(ngModel)]="item.address" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('address') }"></textarea>
+                                <small class="p-error" *ngIf="isInvalid('address')">Obligatorio.</small>
+                            </div>
+                        </div>
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="establishmentType">Tipo establecimiento *</label>
+                                <p-dropdown inputId="establishmentType" [options]="establishmentTypes" [(ngModel)]="item.establishmentType" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('establishmentType') }"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('establishmentType')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="phone">Teléfono *</label>
+                                <input pInputText id="phone" [(ngModel)]="item.phone" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('phone') }" />
+                                <small class="p-error" *ngIf="isInvalid('phone')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="email">Correo *</label>
+                                <input pInputText id="email" type="email" [(ngModel)]="item.email" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('email') }" />
+                                <small class="p-error" *ngIf="isInvalid('email')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="economicActivity">Actividad económica *</label>
+                                <p-dropdown inputId="economicActivity" [options]="economicActivities" [(ngModel)]="item.economicActivity" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('economicActivity') }"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('economicActivity')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="tradeName">Nombre comercial</label>
+                                <input pInputText id="tradeName" [(ngModel)]="item.tradeName" />
+                            </div>
+                            <div class="field">
+                                <label for="department">Departamento *</label>
+                                <p-dropdown inputId="department" [options]="departments" [(ngModel)]="item.department" (onChange)="onDepartmentChange()" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('department') }"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('department')">Obligatorio.</small>
+                            </div>
+                            <div class="field">
+                                <label for="municipality">Municipio *</label>
+                                <p-dropdown inputId="municipality" [options]="municipalityOptions" [(ngModel)]="item.municipalityId" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('municipalityId') }"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('municipalityId')">Obligatorio.</small>
+                            </div>
+                        </div>
+                    </div>
+                </p-tabPanel>
+
+                <p-tabPanel header="Fac. Electrónica">
+                    <h6 class="mt-0">Factura Electrónica</h6>
+                    <div class="grid">
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="feNit">NIT</label>
+                                <input pInputText id="feNit" [(ngModel)]="item.feNit" />
+                            </div>
+                            <div class="field">
+                                <label for="privatePassword">Password privado</label>
+                                <input pInputText type="password" id="privatePassword" autocomplete="new-password" [(ngModel)]="item.privatePassword" [placeholder]="item.hasPrivatePassword ? 'Guardado (dejar vacío para conservar)' : ''" />
+                            </div>
+                            <div class="field">
+                                <label for="publicPassword">Password público</label>
+                                <input pInputText type="password" id="publicPassword" autocomplete="new-password" [(ngModel)]="item.publicPassword" [placeholder]="item.hasPublicPassword ? 'Guardado (dejar vacío para conservar)' : ''" />
+                            </div>
+                            <div class="field">
+                                <label for="apiPassword">Password API</label>
+                                <input pInputText type="password" id="apiPassword" autocomplete="new-password" [(ngModel)]="item.apiPassword" [placeholder]="item.hasApiPassword ? 'Guardado (dejar vacío para conservar)' : ''" />
+                            </div>
+                        </div>
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="dgiPassword">Password DGI</label>
+                                <input pInputText type="password" id="dgiPassword" autocomplete="new-password" [(ngModel)]="item.dgiPassword" [placeholder]="item.hasDgiPassword ? 'Guardado (dejar vacío para conservar)' : ''" />
+                            </div>
+                            <div class="field">
+                                <label for="environment">Ambiente</label>
+                                <p-dropdown inputId="environment" [options]="environments" [(ngModel)]="item.environment" appendTo="body"></p-dropdown>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6>Factura Envío de correo</h6>
+                    <div class="grid">
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="mailEmail">Email</label>
+                                <input pInputText id="mailEmail" type="email" [(ngModel)]="item.mailEmail" />
+                            </div>
+                            <div class="field">
+                                <label for="mailPassword">Contraseña</label>
+                                <input pInputText type="password" id="mailPassword" autocomplete="new-password" [(ngModel)]="item.mailPassword" [placeholder]="item.hasMailPassword ? 'Guardada (dejar vacío para conservar)' : ''" />
+                            </div>
+                            <div class="field">
+                                <label for="mailName">Nombre</label>
+                                <input pInputText id="mailName" [(ngModel)]="item.mailName" />
+                            </div>
+                        </div>
+                        <div class="col-12 md:col-6">
+                            <div class="field">
+                                <label for="mailPort">Puerto</label>
+                                <input pInputText id="mailPort" type="number" min="1" max="65535" [(ngModel)]="item.mailPort" />
+                            </div>
+                            <div class="field">
+                                <label for="mailHost">Host</label>
+                                <input pInputText id="mailHost" [(ngModel)]="item.mailHost" />
+                            </div>
+                            <div class="field-checkbox">
+                                <p-checkbox inputId="mailEnableSsl" [(ngModel)]="item.mailEnableSsl" [binary]="true"></p-checkbox>
+                                <label for="mailEnableSsl">EnableSSL</label>
+                            </div>
+                        </div>
+                    </div>
+                </p-tabPanel>
+            </p-tabView>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" [disabled]="saving" (click)="save()"></button>
+        </ng-template>
+    </p-dialog>
+</div>

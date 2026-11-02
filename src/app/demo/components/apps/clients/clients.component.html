@@ -1,0 +1,173 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+            <button pButton pRipple label="Nuevo Cliente" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+        </ng-template>
+    </p-toolbar>
+
+    <p-table
+        #dt
+        [value]="clients"
+        [loading]="loading"
+        [rows]="10"
+        [paginator]="true"
+        [rowHover]="true"
+        responsiveLayout="scroll"
+        dataKey="id"
+        [globalFilterFields]="['name', 'businessName', 'documentNumber', 'email', 'phone']"
+    >
+        <ng-template pTemplate="caption">
+            <div class="flex align-items-center justify-content-between">
+                <h5 class="m-0">Clientes</h5>
+                <span class="p-input-icon-left">
+                    <i class="pi pi-search"></i>
+                    <input pInputText type="text" placeholder="Buscar..." (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+                </span>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="header">
+            <tr>
+                <th pSortableColumn="name">Nombre <p-sortIcon field="name"></p-sortIcon></th>
+                <th pSortableColumn="businessName">Razón Social <p-sortIcon field="businessName"></p-sortIcon></th>
+                <th>Documento</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>País</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-c>
+            <tr>
+                <td>{{ c.name }}</td>
+                <td>{{ c.businessName }}</td>
+                <td>{{ c.documentType }}: {{ c.documentNumber }}</td>
+                <td>{{ c.email }}</td>
+                <td>{{ c.phone }}</td>
+                <td>{{ c.country }}</td>
+                <td><p-tag [value]="c.isActive ? 'Activo' : 'Inactivo'" [severity]="c.isActive ? 'success' : 'danger'"></p-tag></td>
+                <td>
+                    <div class="flex align-items-center gap-2 flex-nowrap">
+                        <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="editClient(c)"></button>
+                        <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="deleteClient(c)"></button>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="text-center">No hay clientes registrados.</td></tr>
+        </ng-template>
+    </p-table>
+
+    <p-dialog [(visible)]="clientDialog" [style]="{ width: '900px' }" [breakpoints]="{ '960px': '95vw' }" header="Mantenimiento de Clientes" [modal]="true" styleClass="p-fluid">
+        <ng-template pTemplate="content">
+            <div class="grid">
+                <div class="col-12 md:col-5">
+                    <div class="field">
+                        <label for="name">Nombre del Cliente *</label>
+                        <input pInputText id="name" [(ngModel)]="client.name" (ngModelChange)="onNameChange($event)" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('name') }" />
+                        <small class="p-error" *ngIf="isInvalid('name')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="businessName">Razón Social *</label>
+                        <input pInputText id="businessName" [(ngModel)]="client.businessName" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('businessName') }" />
+                        <small class="p-error" *ngIf="isInvalid('businessName')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="address">Dirección</label>
+                        <textarea pInputTextarea id="address" rows="3" [(ngModel)]="client.address"></textarea>
+                    </div>
+                    <div class="field">
+                        <label for="personType">Tipo Persona *</label>
+                        <p-dropdown inputId="personType" [options]="personTypes" [(ngModel)]="client.personType" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('personType') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('personType')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="country">País *</label>
+                        <p-dropdown inputId="country" [options]="countryOptions" [(ngModel)]="client.country" (onChange)="onCountryOrDepartmentChange()" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('country') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('country')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="department">Departamento *</label>
+                        <p-dropdown inputId="department" [options]="departmentOptions" [(ngModel)]="client.department" (onChange)="onCountryOrDepartmentChange()" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('department') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('department')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="municipality">Municipio</label>
+                        <p-dropdown inputId="municipality" [options]="municipalityOptions" [(ngModel)]="client.municipalityId" (onChange)="onMunicipalityChange()" [filter]="true" filterBy="label" [showClear]="true" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-4">
+                    <div class="field">
+                        <label for="email">Email *</label>
+                        <input pInputText id="email" type="email" [(ngModel)]="client.email" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('email') }" />
+                        <small class="p-error" *ngIf="isInvalid('email')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="phone">Teléfono *</label>
+                        <input pInputText id="phone" [(ngModel)]="client.phone" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('phone') }" />
+                        <small class="p-error" *ngIf="isInvalid('phone')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="documentType">Tipo Documento *</label>
+                        <p-dropdown inputId="documentType" [options]="documentTypes" [(ngModel)]="client.documentType" placeholder="NIT / DUI / Pasaporte / Otros" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('documentType') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('documentType')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="documentNumber">Número Documento *</label>
+                        <input pInputText id="documentNumber" [(ngModel)]="client.documentNumber" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('documentNumber') }" />
+                        <small class="p-error" *ngIf="isInvalid('documentNumber')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="establishmentType">Tipo Establecimiento *</label>
+                        <p-dropdown inputId="establishmentType" [options]="establishmentTypeOptions" [(ngModel)]="client.establishmentType" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('establishmentType') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('establishmentType')">Obligatorio.</small>
+                    </div>
+                    <div class="field">
+                        <label for="economicActivity">Actividad Económica *</label>
+                        <p-dropdown inputId="economicActivity" [options]="economicActivityOptions" [(ngModel)]="client.economicActivity" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('economicActivity') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isInvalid('economicActivity')">Obligatorio.</small>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-3">
+                    <div class="flex flex-column gap-3 mt-4">
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="isActive" [(ngModel)]="client.isActive" [binary]="true"></p-checkbox>
+                            <label for="isActive" class="ml-2 mb-0">Cliente Activo</label>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="isForeign" [(ngModel)]="client.isForeign" [binary]="true"></p-checkbox>
+                            <label for="isForeign" class="ml-2 mb-0">Cliente Extranjero</label>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="isLargeTaxpayer" [(ngModel)]="client.isLargeTaxpayer" [binary]="true"></p-checkbox>
+                            <label for="isLargeTaxpayer" class="ml-2 mb-0">Es Gran Contribuyente</label>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="paysIva" [(ngModel)]="client.paysIva" [binary]="true"></p-checkbox>
+                            <label for="paysIva" class="ml-2 mb-0">Paga IVA</label>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="isTaxpayer" [(ngModel)]="client.isTaxpayer" [binary]="true" (onChange)="onTaxpayerChange()"></p-checkbox>
+                            <label for="isTaxpayer" class="ml-2 mb-0">Es Contribuyente</label>
+                        </div>
+                        <div class="field mb-0" *ngIf="client.isTaxpayer">
+                            <label for="ivaRegistration">Número de Registro de IVA *</label>
+                            <input pInputText id="ivaRegistration" [(ngModel)]="client.ivaRegistration" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('ivaRegistration') }" />
+                            <small class="p-error" *ngIf="isInvalid('ivaRegistration')">Obligatorio.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" [disabled]="saving" (click)="saveClient()"></button>
+        </ng-template>
+    </p-dialog>
+</div>

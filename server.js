@@ -16,12 +16,35 @@ app.use(cors()); // Permite que Angular se conecte
 app.set('trust proxy', true);
 
 // Conexión a MongoDB Atlas usando variable de entorno
-const MONGODB_URI = process.env.MONGODB_URI;
+const { MONGODB_URI, MAIN_DB } = require('./db-config');
 mongoose.connect(MONGODB_URI, {
-    dbName: 'tablero', // Forzamos el uso de la base de datos "tablero"
+    dbName: MAIN_DB,
     useNewUrlParser: true,
     useUnifiedTopology: true
-}).then(() => console.log('Conectado a MongoDB - Base de datos: invoiceSIAF'))
+}).then(async () => {
+    console.log(`Conectado a MongoDB - Base de datos: ${MAIN_DB}`);
+    // Crea la colección "clients" si aún no existe
+    try {
+        await Client.createCollection();
+    } catch (err) {
+        if (err.codeName !== 'NamespaceExists') console.error('Error al crear la colección clients', err);
+    }
+    try {
+        await initInvoices();
+    } catch (err) {
+        console.error('Error al inicializar facturación', err);
+    }
+    try {
+        await initDocumentTypes();
+    } catch (err) {
+        console.error('Error al inicializar tipos de documento', err);
+    }
+    try {
+        await seedGlobalCatalogs();
+    } catch (err) {
+        console.error('Error al cargar los catálogos globales', err);
+    }
+})
   .catch(err => console.error('Error de conexión', err));
 
 // Definición de un modelo sencillo
@@ -86,6 +109,34 @@ const RolPermission = mongoose.model('RolPermission', {
     permissions: { type: mongoose.Schema.Types.Mixed, default: {} },
     updatedAt: Date
 }, 'rol_permissions');
+
+// Modelo para el catálogo de Clientes (colección "clients")
+const Client = mongoose.model('Client', {
+    name: { type: String, required: true, trim: true },
+    businessName: { type: String, required: true, trim: true },
+    address: { type: String, default: '' },
+    personType: { type: String, required: true },
+    country: { type: String, required: true },
+    department: { type: String, required: true },
+    municipality: { type: String, default: 'Otro (Para extranjeros)' },
+    // El código de municipio se repite en el catálogo; el vínculo real es el ID
+    municipalityId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    email: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, trim: true },
+    settlementFormat: { type: String, default: '' },
+    documentType: { type: String, required: true },
+    documentNumber: { type: String, required: true, trim: true },
+    establishmentType: { type: String, required: true },
+    economicActivity: { type: String, required: true, trim: true },
+    isActive: { type: Boolean, default: true },
+    isForeign: { type: Boolean, default: false },
+    isLargeTaxpayer: { type: Boolean, default: false },
+    paysIva: { type: Boolean, default: true },
+    isTaxpayer: { type: Boolean, default: false },
+    ivaRegistration: { type: String, default: '', trim: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: Date
+}, 'clients');
 
 /////////////////////////////////// Configuración SMTP ///////////////////////////////////////////////
 // La contraseña nunca se devuelve al cliente; solo un indicador de si ya está guardada
@@ -679,6 +730,92 @@ app.delete('/api/users/:id', async (req, res) => {
         res.status(500).json({ error: "Error al eliminar el usuario" });
     }
 });
+
+/////////////////////////////////// CRUD para Clientes ///////////////////////////////////////////////
+const CLIENT_FIELDS = [
+    'name', 'businessName', 'address', 'personType', 'country', 'department', 'municipality', 'municipalityId',
+    'email', 'phone', 'documentType', 'documentNumber', 'establishmentType',
+    'economicActivity', 'isActive', 'isForeign', 'isLargeTaxpayer', 'paysIva', 'isTaxpayer', 'ivaRegistration'
+];
+
+// Solo se aceptan los campos del catálogo (evita sobrescribir _id/createdAt desde el cliente)
+const pickClientData = (body) => {
+    const data = {};
+    for (const field of CLIENT_FIELDS) {
+        if (body[field] !== undefined) data[field] = body[field];
+    }
+    // El registro de IVA solo aplica a contribuyentes
+    if (data.isTaxpayer === false) data.ivaRegistration = '';
+    return data;
+};
+
+const taxpayerWithoutRegistration = (data) => data.isTaxpayer === true && !String(data.ivaRegistration ?? '').trim();
+
+const toClientDto = (doc) => {
+    const { _id, __v, ...data } = doc.toObject();
+    return { ...data, id: _id };
+};
+
+app.get('/api/clients', async (req, res) => {
+    try {
+        const clients = await Client.find().sort({ name: 1 });
+        res.json(clients.map(toClientDto));
+    } catch (error) {
+        res.status(500).json({ error: "Error al obtener clientes" });
+    }
+});
+
+app.post('/api/clients', async (req, res) => {
+    try {
+        const data = pickClientData(req.body);
+        if (taxpayerWithoutRegistration(data)) return res.status(400).json({ error: "El número de registro de IVA es obligatorio para contribuyentes" });
+        const saved = await new Client(data).save();
+        res.status(201).json(toClientDto(saved));
+    } catch (error) {
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ error: "Faltan campos obligatorios del cliente" });
+        }
+        res.status(500).json({ error: "Error al crear el cliente" });
+    }
+});
+
+app.put('/api/clients/:id', async (req, res) => {
+    try {
+        const data = pickClientData(req.body);
+        if (taxpayerWithoutRegistration(data)) return res.status(400).json({ error: "El número de registro de IVA es obligatorio para contribuyentes" });
+        const updated = await Client.findByIdAndUpdate(
+            req.params.id,
+            { ...data, updatedAt: new Date() },
+            { new: true, runValidators: true }
+        );
+        if (!updated) return res.status(404).json({ error: "Cliente no encontrado" });
+        res.json(toClientDto(updated));
+    } catch (error) {
+        if (error.name === 'ValidationError' || error.name === 'CastError') {
+            return res.status(400).json({ error: "Datos del cliente inválidos" });
+        }
+        res.status(500).json({ error: "Error al actualizar el cliente" });
+    }
+});
+
+app.delete('/api/clients/:id', async (req, res) => {
+    try {
+        const deleted = await Client.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: "Cliente no encontrado" });
+        res.json({ success: true, message: "Cliente eliminado correctamente" });
+    } catch (error) {
+        res.status(500).json({ error: "Error al eliminar el cliente" });
+    }
+});
+
+/////////////////////////////////// Catálogos Facturación Electrónica (BD globalCatalogs) /////////////
+const seedGlobalCatalogs = require('./global-catalogs')(app, mongoose);
+
+/////////////////////////////////// Facturación ///////////////////////////////////////////////////////
+const initInvoices = require('./invoices')(app, mongoose);
+
+/////////////////////////////////// Administrador de documentos ///////////////////////////////////////
+const initDocumentTypes = require('./document-types')(app, mongoose);
 
 /////////////////////////////////// CRUD para LOGIN///////////////////////////////////////////////
 

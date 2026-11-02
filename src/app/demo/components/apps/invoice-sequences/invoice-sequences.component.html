@@ -1,0 +1,82 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+            <button pButton pRipple label="Nuevo Año" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+        </ng-template>
+    </p-toolbar>
+
+    <p-table [value]="items" [loading]="loading" [rows]="10" [paginator]="true" [rowHover]="true" responsiveLayout="scroll" dataKey="id">
+        <ng-template pTemplate="caption">
+            <h5 class="m-0">Administrador de Correlativos de Facturas</h5>
+            <small class="text-color-secondary">Cada tipo de documento tiene su propio correlativo, que avanza de 1 en 1 y se reinicia cada año (formato PREFIJO-AAAA + 6 dígitos).</small>
+        </ng-template>
+        <ng-template pTemplate="header">
+            <tr>
+                <th pSortableColumn="documentType">Tipo de documento <p-sortIcon field="documentType"></p-sortIcon></th>
+                <th pSortableColumn="year">Año <p-sortIcon field="year"></p-sortIcon></th>
+                <th>Prefijo</th>
+                <th class="text-right">Último correlativo</th>
+                <th>Siguiente número</th>
+                <th class="text-right">Facturas emitidas</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+            <tr>
+                <td>{{ row.documentType }}</td>
+                <td>{{ row.year }}</td>
+                <td>{{ row.prefix }}</td>
+                <td class="text-right">{{ row.lastNumber }}</td>
+                <td>{{ row.nextNumber }}</td>
+                <td class="text-right">{{ row.issued }}</td>
+                <td>{{ row.active ? 'Activo' : 'Inactivo' }}</td>
+                <td>
+                    <div class="flex align-items-center gap-2 flex-nowrap">
+                        <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="edit(row)"></button>
+                        <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="remove(row)"></button>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+            <tr><td colspan="8" class="text-center">No hay correlativos configurados. Se crearán automáticamente al emitir la primera factura de cada tipo y año.</td></tr>
+        </ng-template>
+    </p-table>
+
+    <p-dialog [(visible)]="dialog" [style]="{ width: '420px' }" [breakpoints]="{ '960px': '95vw' }" header="Correlativo" [modal]="true" styleClass="p-fluid">
+        <ng-template pTemplate="content">
+            <div class="field">
+                <label for="documentTypeId">Tipo de documento *</label>
+                <p-dropdown inputId="documentTypeId" [options]="documentTypes" [(ngModel)]="item.documentTypeId" (onChange)="onTypeChange()" [disabled]="!isNew" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                <small class="p-error" *ngIf="submitted && !item.documentTypeId">Obligatorio.</small>
+            </div>
+            <div class="field">
+                <label for="prefix">Prefijo *</label>
+                <input pInputText id="prefix" [(ngModel)]="item.prefix" [disabled]="!isNew" />
+                <small class="p-error" *ngIf="submitted && !item.prefix">Obligatorio.</small>
+            </div>
+            <div class="field">
+                <label for="year">Año *</label>
+                <p-inputNumber inputId="year" [(ngModel)]="item.year" [useGrouping]="false" [min]="2000" [max]="2999" [disabled]="!isNew"></p-inputNumber>
+                <small class="p-error" *ngIf="submitted && !item.year">Obligatorio.</small>
+            </div>
+            <div class="field">
+                <label for="lastNumber">Último correlativo usado *</label>
+                <p-inputNumber inputId="lastNumber" [(ngModel)]="item.lastNumber" [useGrouping]="false" [min]="0" [max]="999999"></p-inputNumber>
+                <small class="text-color-secondary">Siguiente factura: {{ nextPreview }}</small>
+            </div>
+            <div class="field-checkbox mb-0">
+                <p-checkbox inputId="active" [(ngModel)]="item.active" [binary]="true"></p-checkbox>
+                <label for="active">Activo (permite emitir facturas del año)</label>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" [loading]="saving" (click)="save()"></button>
+        </ng-template>
+    </p-dialog>
+</div>

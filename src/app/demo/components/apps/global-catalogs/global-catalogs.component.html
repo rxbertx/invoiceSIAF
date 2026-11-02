@@ -1,0 +1,101 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <p-toolbar styleClass="mb-4">
+        <ng-template pTemplate="left">
+            <button pButton pRipple label="Nuevo Registro" icon="pi pi-plus" class="p-button-success mr-2" (click)="openNew()"></button>
+        </ng-template>
+    </p-toolbar>
+
+    <p-table
+        #dt
+        [value]="items"
+        [loading]="loading"
+        [rows]="10"
+        [rowsPerPageOptions]="[10, 25, 50, 100]"
+        [paginator]="true"
+        [rowHover]="true"
+        responsiveLayout="scroll"
+        dataKey="id"
+        [globalFilterFields]="['code', 'description']"
+    >
+        <ng-template pTemplate="caption">
+            <div class="flex align-items-center justify-content-between">
+                <h5 class="m-0">{{ catalogLabel }}</h5>
+                <span class="p-input-icon-left">
+                    <i class="pi pi-search"></i>
+                    <input pInputText type="text" placeholder="Buscar..." (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+                </span>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="header">
+            <tr>
+                <th pSortableColumn="code" style="width: 14%">Código <p-sortIcon field="code"></p-sortIcon></th>
+                <th pSortableColumn="description">{{ descriptionLabel }} <p-sortIcon field="description"></p-sortIcon></th>
+                <th *ngFor="let f of extraFields">{{ f.label }}</th>
+                <th style="width: 12%">Estado</th>
+                <th style="width: 12%">Acciones</th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+            <tr>
+                <td>{{ row.code }}</td>
+                <td>{{ row.description }}</td>
+                <td *ngFor="let f of extraFields" [ngSwitch]="f.type">
+                    <ng-container *ngSwitchCase="'boolean'">{{ row[f.key] ? 'Sí' : 'No' }}</ng-container>
+                    <ng-container *ngSwitchCase="'country'">{{ countryName(row[f.key]) }}</ng-container>
+                    <ng-container *ngSwitchDefault>{{ row[f.key] }}</ng-container>
+                </td>
+                <td><p-tag [value]="row.active ? 'Activo' : 'Inactivo'" [severity]="row.active ? 'success' : 'danger'"></p-tag></td>
+                <td>
+                    <div class="flex align-items-center gap-2 flex-nowrap">
+                        <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="editItem(row)"></button>
+                        <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" (click)="deleteItem(row)"></button>
+                    </div>
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+            <tr><td [attr.colspan]="4 + extraFields.length" class="text-center">No hay registros en este catálogo.</td></tr>
+        </ng-template>
+    </p-table>
+
+    <p-dialog [(visible)]="itemDialog" [style]="{ width: '500px' }" [header]="catalogLabel" [modal]="true" styleClass="p-fluid">
+        <ng-template pTemplate="content">
+            <div class="field">
+                <label for="code">Código *</label>
+                <input pInputText id="code" [(ngModel)]="item.code" autofocus [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('code') }" />
+                <small class="p-error" *ngIf="isInvalid('code')">El código es obligatorio.</small>
+            </div>
+            <div class="field">
+                <label for="description">{{ descriptionLabel }} *</label>
+                <input pInputText id="description" [(ngModel)]="item.description" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('description') }" />
+                <small class="p-error" *ngIf="isInvalid('description')">Este campo es obligatorio.</small>
+            </div>
+            <div class="field" *ngFor="let f of extraFields" [ngSwitch]="f.type">
+                <ng-container *ngSwitchCase="'number'">
+                    <label [for]="f.key">{{ f.label }}{{ f.required ? ' *' : '' }}</label>
+                    <p-inputNumber [inputId]="f.key" [(ngModel)]="item[f.key]" [useGrouping]="false" [min]="1"></p-inputNumber>
+                    <small class="p-error" *ngIf="f.required && isInvalid(f.key)">Este campo es obligatorio.</small>
+                </ng-container>
+                <ng-container *ngSwitchCase="'country'">
+                    <label [for]="f.key">{{ f.label }}</label>
+                    <p-dropdown [inputId]="f.key" [options]="countryOptions" [(ngModel)]="item[f.key]" [showClear]="true" [filter]="true" filterBy="label" placeholder="Sin país (extranjeros)" appendTo="body"></p-dropdown>
+                </ng-container>
+                <div class="field-checkbox mb-0" *ngSwitchCase="'boolean'">
+                    <p-checkbox [inputId]="f.key" [(ngModel)]="item[f.key]" [binary]="true"></p-checkbox>
+                    <label [for]="f.key">{{ f.label }}</label>
+                </div>
+            </div>
+            <div class="field-checkbox">
+                <p-checkbox inputId="active" [(ngModel)]="item.active" [binary]="true"></p-checkbox>
+                <label for="active">Activo</label>
+            </div>
+        </ng-template>
+        <ng-template pTemplate="footer">
+            <button pButton pRipple label="Cancelar" icon="pi pi-times" class="p-button-text" (click)="hideDialog()"></button>
+            <button pButton pRipple label="Guardar" icon="pi pi-check" class="p-button-text" [disabled]="saving" (click)="saveItem()"></button>
+        </ng-template>
+    </p-dialog>
+</div>

@@ -1,0 +1,249 @@
+<div class="card">
+    <p-toast></p-toast>
+    <p-confirmDialog></p-confirmDialog>
+
+    <!-- Listado -->
+    <ng-container *ngIf="view === 'list'">
+        <p-toolbar styleClass="mb-4">
+            <ng-template pTemplate="left">
+                <button pButton pRipple label="Nueva Factura" icon="pi pi-plus" class="p-button-success mr-2" (click)="newInvoice()"></button>
+            </ng-template>
+        </p-toolbar>
+
+        <p-table #dt [value]="invoices" [loading]="loading" [rows]="10" [paginator]="true" [rowHover]="true" responsiveLayout="scroll" dataKey="id" [globalFilterFields]="['documentNumber', 'billToName', 'documentType']">
+            <ng-template pTemplate="caption">
+                <div class="flex align-items-center justify-content-between">
+                    <h5 class="m-0">Facturación</h5>
+                    <span class="p-input-icon-left">
+                        <i class="pi pi-search"></i>
+                        <input pInputText type="text" placeholder="Buscar..." (input)="dt.filterGlobal($any($event.target).value, 'contains')" />
+                    </span>
+                </div>
+            </ng-template>
+            <ng-template pTemplate="header">
+                <tr>
+                    <th pSortableColumn="documentDate">Fecha <p-sortIcon field="documentDate"></p-sortIcon></th>
+                    <th pSortableColumn="documentNumber">No. Documento <p-sortIcon field="documentNumber"></p-sortIcon></th>
+                    <th>Tipo</th>
+                    <th>Facturar a</th>
+                    <th class="text-right">Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+                <tr>
+                    <td>{{ row.documentDate | date: 'dd/MM/yyyy':'UTC' }}</td>
+                    <td>{{ row.documentNumber }}</td>
+                    <td>{{ row.documentType }}</td>
+                    <td>{{ row.billToName }}</td>
+                    <td class="text-right">{{ row.totals?.total | number: '1.2-2' }}</td>
+                    <td><p-tag [value]="row.status" [severity]="row.status === 'ANULADA' ? 'danger' : 'info'"></p-tag></td>
+                    <td>
+                        <div class="flex align-items-center gap-2 flex-nowrap">
+                            <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="openInvoice(row)"></button>
+                            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" [disabled]="row.status !== 'BORRADOR'" (click)="deleteInvoice(row)"></button>
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+                <tr><td colspan="7" class="text-center">No hay facturas registradas.</td></tr>
+            </ng-template>
+        </p-table>
+    </ng-container>
+
+    <!-- Editor -->
+    <ng-container *ngIf="view === 'edit'">
+        <p-toolbar styleClass="mb-4">
+            <ng-template pTemplate="left">
+                <button pButton pRipple label="Guardar" icon="pi pi-save" class="p-button-text mr-2" [disabled]="saving || readonly" (click)="save()"></button>
+                <button pButton pRipple label="Salir" icon="pi pi-sign-out" class="p-button-text" (click)="exit()"></button>
+            </ng-template>
+            <ng-template pTemplate="right">
+                <p-tag *ngIf="isSaved" [value]="invoice.documentNumber + ' · ' + invoice.status" [severity]="readonly ? 'danger' : 'info'"></p-tag>
+            </ng-template>
+        </p-toolbar>
+
+        <p-tabView [(activeIndex)]="activeTab">
+            <!-- Imagen 1: Movimientos (encabezado) -->
+            <p-tabPanel header="Movimientos">
+                <div class="grid p-fluid">
+                    <div class="col-12 md:col-8">
+                        <div class="formgrid grid">
+                            <div class="field col-12 md:col-6">
+                                <label for="documentDate">Fecha Documento *</label>
+                                <p-calendar inputId="documentDate" [(ngModel)]="invoice.documentDate" dateFormat="dd/mm/yy" [showIcon]="true" [disabled]="readonly" appendTo="body"></p-calendar>
+                                <small class="p-error" *ngIf="isInvalid('documentDate')">Obligatorio.</small>
+                            </div>
+                            <div class="field col-12 md:col-6">
+                                <label for="documentNumber">No. Documento</label>
+                                <input pInputText id="documentNumber" [(ngModel)]="invoice.documentNumber" [disabled]="isSaved" placeholder="Se genera automáticamente" />
+                            </div>
+                            <div class="field col-12 md:col-6">
+                                <label for="documentType">Tipo de Documento *</label>
+                                <p-dropdown inputId="documentType" [options]="documentTypes" [(ngModel)]="invoice.documentTypeId"                                 [disabled]="readonly" (onChange)="recalculate()" appendTo="body"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('documentTypeId')">Obligatorio.</small>
+                            </div>
+                            <div class="field col-12">
+                                <label for="clientId">Facturar a *</label>
+                                <p-dropdown inputId="clientId" [options]="clientOptions" [(ngModel)]="invoice.clientId" [disabled]="readonly" [filter]="true" filterBy="label" placeholder="Seleccionar cliente" (onChange)="onClientChange()" appendTo="body"></p-dropdown>
+                                <small class="p-error" *ngIf="isInvalid('clientId')">Seleccione un cliente.</small>
+                            </div>
+                            <div class="field col-12">
+                                <label for="billToName">A Nombre De *</label>
+                                <input pInputText id="billToName" [(ngModel)]="invoice.billToName" [disabled]="readonly" />
+                                <small class="p-error" *ngIf="isInvalid('billToName')">Obligatorio.</small>
+                            </div>
+                            <div class="field col-12 md:col-6">
+                                <label for="customsDeclarationNumber">No. Declaración de Mercancía</label>
+                                <input pInputText id="customsDeclarationNumber" [(ngModel)]="invoice.customsDeclarationNumber" [disabled]="readonly" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-4">
+                        <div class="flex flex-column gap-3 mt-4">
+                            <div class="flex align-items-center">
+                                <p-checkbox inputId="isExternalSale" [(ngModel)]="invoice.isExternalSale" [binary]="true" [disabled]="readonly"></p-checkbox>
+                                <label for="isExternalSale" class="ml-2 mb-0">Venta Externa</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="field">
+                            <label for="accountingDescription">Descripción Contable</label>
+                            <textarea pInputTextarea id="accountingDescription" rows="3" [(ngModel)]="invoice.accountingDescription" [disabled]="readonly"></textarea>
+                        </div>
+                        <button pButton pRipple type="button" label="Ir a Detalle de Factura" icon="pi pi-arrow-right" class="w-auto" (click)="goToDetail()"></button>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- Imagen 2: Detalle Movimientos -->
+            <p-tabPanel header="Detalle Movimientos">
+                <div class="grid p-fluid">
+                    <div class="col-12 md:col-5">
+                        <div class="field">
+                            <label for="unit">Unidad</label>
+                            <p-dropdown inputId="unit" [options]="unitOptions" [(ngModel)]="lineForm.unit" [disabled]="readonly || useDefaultUnit" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                        </div>
+                        <div class="flex align-items-center mb-3">
+                            <p-checkbox inputId="useDefaultUnit" [(ngModel)]="useDefaultUnit" [binary]="true" [disabled]="readonly" (onChange)="onDefaultUnitChange()"></p-checkbox>
+                            <label for="useDefaultUnit" class="ml-2 mb-0">Otra por defecto</label>
+                        </div>
+                        <div class="field">
+                            <label for="description">Detalle</label>
+                            <textarea pInputTextarea id="description" rows="4" [(ngModel)]="lineForm.description" [disabled]="readonly"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-4">
+                        <div class="flex align-items-center mb-3">
+                            <p-checkbox inputId="exempt" [(ngModel)]="lineForm.exempt" [binary]="true" [disabled]="readonly"></p-checkbox>
+                            <label for="exempt" class="ml-2 mb-0">Exento</label>
+                        </div>
+                        <div class="field">
+                            <label for="quantity">Cantidad</label>
+                            <p-inputNumber inputId="quantity" [(ngModel)]="lineForm.quantity" [min]="0" [maxFractionDigits]="4" [disabled]="readonly"></p-inputNumber>
+                        </div>
+                        <div class="field">
+                            <label for="unitPrice">Precio Unitario</label>
+                            <p-inputNumber inputId="unitPrice" [(ngModel)]="lineForm.unitPrice" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="8" [disabled]="readonly"></p-inputNumber>
+                        </div>
+                        <div class="flex align-items-center">
+                            <p-checkbox inputId="valueWithIva" [(ngModel)]="lineForm.valueWithIva" [binary]="true" [disabled]="readonly"></p-checkbox>
+                            <label for="valueWithIva" class="ml-2 mb-0 font-semibold">Valor Con IVA</label>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-3">
+                        <div class="field">
+                            <label>Valor</label>
+                            <input pInputText [value]="linePreview.value | number: '1.2-2'" disabled />
+                        </div>
+                        <div class="field">
+                            <label>IVA</label>
+                            <input pInputText [value]="linePreview.iva | number: '1.2-2'" disabled />
+                        </div>
+                        <div class="field">
+                            <label>Retención IVA</label>
+                            <input pInputText [value]="linePreview.ivaRetention | number: '1.2-2'" disabled />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 my-3">
+                    <button pButton pRipple type="button" label="Agregar" icon="pi pi-plus" class="p-button-outlined" [disabled]="readonly" (click)="addLine()"></button>
+                    <button pButton pRipple type="button" label="Modificar" icon="pi pi-pencil" class="p-button-outlined" [disabled]="readonly || !selectedLine" (click)="modifyLine()"></button>
+                    <button pButton pRipple type="button" label="Eliminar" icon="pi pi-trash" class="p-button-outlined p-button-danger" [disabled]="readonly || !selectedLine" (click)="removeLine()"></button>
+                </div>
+
+                <p-table [value]="lines" [(selection)]="selectedLine" selectionMode="single" (onRowSelect)="selectLine($event.data)" (onRowUnselect)="resetLineForm()" responsiveLayout="scroll" styleClass="p-datatable-sm" [scrollable]="true" scrollHeight="260px">
+                    <ng-template pTemplate="caption">Detalle</ng-template>
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th>Descripción</th>
+                            <th class="text-right">Valor</th>
+                            <th class="text-right">Cantidad</th>
+                            <th class="text-right">Valor Unitario</th>
+                            <th class="text-center">Exento</th>
+                            <th class="text-right">IVA</th>
+                            <th class="text-right">Valor Exento</th>
+                            <th class="text-right">IVA Retenido</th>
+                            <th>Unidad</th>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-l>
+                        <tr [pSelectableRow]="l">
+                            <td>{{ l.description }}</td>
+                            <td class="text-right">{{ l.value | number: '1.2-2' }}</td>
+                            <td class="text-right">{{ l.quantity | number: '1.0-4' }}</td>
+                            <td class="text-right">{{ l.unitPrice | number: '1.2-8' }}</td>
+                            <td class="text-center"><i class="pi" [ngClass]="l.exempt ? 'pi-check' : 'pi-minus'"></i></td>
+                            <td class="text-right">{{ l.iva | number: '1.2-2' }}</td>
+                            <td class="text-right">{{ l.exemptValue | number: '1.2-2' }}</td>
+                            <td class="text-right">{{ l.ivaRetention | number: '1.2-2' }}</td>
+                            <td>{{ l.unitName }}</td>
+                        </tr>
+                    </ng-template>
+                    <ng-template pTemplate="emptymessage">
+                        <tr><td colspan="10" class="text-center">Agregue líneas al detalle de la factura.</td></tr>
+                    </ng-template>
+                </p-table>
+
+                <div class="grid mt-4">
+                    <div class="col-12 md:col-6">
+                        <div class="grid p-fluid">
+                            <div class="field col-12 md:col-6">
+                                <label>Fecha Doc.</label>
+                                <input pInputText [value]="invoice.documentDate | date: 'dd/MM/yyyy'" disabled />
+                            </div>
+                            <div class="field col-12 md:col-6">
+                                <label>Documento</label>
+                                <input pInputText [value]="invoice.documentNumber || ''" disabled />
+                            </div>
+                            <div class="field col-12">
+                                <label>Facturar A</label>
+                                <input pInputText [value]="invoice.billToName || ''" disabled />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 md:col-3">
+                        <div class="flex justify-content-between mb-2"><span>Sub-Total</span><span>{{ totals.ventaTotal | number: '1.2-2' }}</span></div>
+                        <div class="flex justify-content-between mb-2"><span>IVA</span><span>{{ totals.iva | number: '1.2-2' }}</span></div>
+                        <div class="flex justify-content-between mb-2"><span>Total</span><span>{{ totals.subTotal | number: '1.2-2' }}</span></div>
+                        <div class="flex justify-content-between"><span>Ret. IVA</span><span>{{ totals.ivaRetention | number: '1.2-2' }}</span></div>
+                    </div>
+                    <div class="col-12 md:col-3">
+                        <div class="surface-border border-1 border-round p-3">
+                            <div class="font-semibold mb-2">Valor en factura</div>
+                            <div class="flex justify-content-between mb-2"><span>Venta Total</span><span>{{ totals.ventaTotal | number: '1.2-2' }}</span></div>
+                            <div class="flex justify-content-between mb-2"><span>IVA</span><span>{{ totals.iva | number: '1.2-2' }}</span></div>
+                            <div class="flex justify-content-between mb-2"><span>Sub-Total</span><span class="font-bold">{{ totals.subTotal | number: '1.2-2' }}</span></div>
+                            <div class="flex justify-content-between mb-2"><span>Ret. IVA</span><span>{{ totals.ivaRetention | number: '1.2-2' }}</span></div>
+                            <div class="flex justify-content-between"><span>Total</span><span class="font-bold">{{ totals.total | number: '1.2-2' }}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </ng-container>
+</div>

@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
+import { GLOBAL_CATALOGS } from 'src/app/demo/service/global-catalog.service';
 
 interface MenuOption {
     key: string;
@@ -27,9 +28,15 @@ export class RolsComponent implements OnInit {
         { key: 'gestion-tableros',   label: 'Gestión de Tableros',     icon: 'pi pi-list' },
         { key: 'gestion-usuarios',   label: 'Gestión de Usuarios',     icon: 'pi pi-users' },
         { key: 'kpi-proyectos',      label: 'KPI Proyectos',           icon: 'pi pi-chart-bar' },
+        { key: 'clientes',           label: 'Clientes',                icon: 'pi pi-id-card' },
+        { key: 'facturacion',        label: 'Facturación',             icon: 'pi pi-file-edit' },
         { key: 'admin-roles',        label: 'Administrador de Roles',  icon: 'pi pi-shield' },
+        { key: 'admin-correlativos', label: 'Administrador de Correlativos', icon: 'pi pi-sort-numeric-up' },
+        { key: 'admin-documentos',   label: 'Catálogo FE: Documentos', icon: 'pi pi-file' },
         { key: 'config-correo',      label: 'Configuración Correo',    icon: 'pi pi-envelope' },
-        { key: 'configuraciones',    label: 'Configuraciones',         icon: 'pi pi-cog' }
+        { key: 'configuraciones',    label: 'Configuraciones',         icon: 'pi pi-cog' },
+        { key: 'cat-parametros-generales', label: 'Catálogo FE: Parámetros Generales', icon: 'pi pi-database' },
+        ...GLOBAL_CATALOGS.map((c) => ({ key: `cat-${c.key}`, label: `Catálogo FE: ${c.label}`, icon: 'pi pi-database' }))
     ];
 
     roles: RolRow[] = [

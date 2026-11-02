@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
+import { GLOBAL_CATALOGS } from 'src/app/demo/service/global-catalog.service';
 
 const ALL_ITEMS = [
     {
@@ -22,6 +23,43 @@ const ALL_ITEMS = [
         routerLink: ['/apps/kpi']
     },
     {
+        key: 'clientes',
+        label: 'Clientes',
+        icon: 'pi pi-fw pi-id-card',
+        routerLink: ['/apps/clients']
+    },
+    {
+        key: 'facturacion',
+        label: 'Facturación',
+        icon: 'pi pi-fw pi-file-edit',
+        routerLink: ['/apps/invoicing']
+    },
+    {
+        key: 'catalogos-fe',
+        label: 'Facturación Electrónica',
+        icon: 'pi pi-fw pi-database',
+        items: [
+            {
+                key: 'cat-parametros-generales',
+                label: 'Parámetros Generales',
+                icon: 'pi pi-fw pi-sliders-v',
+                routerLink: ['/apps/general-parameters']
+            },
+            {
+                key: 'admin-documentos',
+                label: 'Documentos',
+                icon: 'pi pi-fw pi-file',
+                routerLink: ['/apps/document-types']
+            },
+            ...GLOBAL_CATALOGS.map((c) => ({
+            key: `cat-${c.key}`,
+            label: c.label,
+            icon: c.icon,
+            routerLink: ['/apps/catalogs', c.key]
+        }))
+        ]
+    },
+    {
         key: 'configuraciones',
         label: 'Configuraciones',
         icon: 'pi pi-fw pi-cog',
@@ -37,6 +75,12 @@ const ALL_ITEMS = [
                 label: 'Administrador de Roles',
                 icon: 'pi pi-fw pi-shield',
                 routerLink: ['/apps/rols']
+            },
+            {
+                key: 'admin-correlativos',
+                label: 'Administrador de Correlativos',
+                icon: 'pi pi-fw pi-sort-numeric-up',
+                routerLink: ['/apps/invoice-sequences']
             },
             {
                 key: 'config-correo',
