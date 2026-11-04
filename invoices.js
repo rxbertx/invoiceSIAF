@@ -1,6 +1,7 @@
 // Facturación: encabezado + detalle en un solo documento (colección "invoices")
 const { GLOBAL_CATALOGS_DB } = require('./db-config');
 const registerInvoiceSequences = require('./invoice-sequences');
+const registerInvoiceApplications = require('./invoice-applications');
 
 const IVA_RATE = 0.13;
 const RETENTION_RATE = 0.01;
@@ -51,7 +52,9 @@ module.exports = function registerInvoices(app, mongoose) {
         value: { type: Number, default: 0 },
         exemptValue: { type: Number, default: 0 },
         iva: { type: Number, default: 0 },
-        ivaRetention: { type: Number, default: 0 }
+        ivaRetention: { type: Number, default: 0 },
+        // Líneas generadas por la aplicación de documentos: las administra el servidor
+        applicationTargetId: { type: mongoose.Schema.Types.ObjectId, default: null }
     }, { _id: false });
 
     const Invoice = mongoose.model('Invoice', new mongoose.Schema({
@@ -177,7 +180,9 @@ module.exports = function registerInvoices(app, mongoose) {
         const retentionAgent = client.isLargeTaxpayer && docType.dteType === CREDITO_FISCAL_DTE;
 
         // La exportación es siempre exenta
-        const rawLines = (Array.isArray(body.lines) ? body.lines : []).map((l) => (docType.dteType === EXPORT_DTE ? { ...l, exempt: true } : l));
+        const rawLines = (Array.isArray(body.lines) ? body.lines : [])
+            .filter((l) => !l.applicationTargetId)
+            .map((l) => (docType.dteType === EXPORT_DTE ? { ...l, exempt: true } : l));
         const calculated = calcInvoice(rawLines, retentionAgent);
         data.lines = calculated.lines;
         data.totals = calculated.totals;
@@ -193,6 +198,20 @@ module.exports = function registerInvoices(app, mongoose) {
         console.error(fallback, error);
         return res.status(500).json({ error: fallback });
     };
+
+    // Recalcula el detalle de una nota: líneas manuales + líneas de ajuste derivadas de sus aplicaciones
+    const rebuildNoteLines = async (noteId) => {
+        const note = await Invoice.findById(noteId);
+        if (!note || !applications.isNote(note.dteType)) return;
+        const manual = note.lines.map((l) => l.toObject()).filter((l) => !l.applicationTargetId);
+        const calculated = calcInvoice([...manual, ...(await applications.linesFor(note._id))], false);
+        note.lines = calculated.lines;
+        note.totals = calculated.totals;
+        note.updatedAt = new Date();
+        await note.save();
+    };
+
+    const applications = registerInvoiceApplications(app, mongoose, Invoice, HttpError, handleError, rebuildNoteLines);
 
     app.get('/api/invoices', async (req, res) => {
         try {
@@ -240,7 +259,15 @@ module.exports = function registerInvoices(app, mongoose) {
 
             if (invoice.status === 'VALIDADA') return res.status(409).json({ error: 'Una factura validada no se puede modificar; debe desvalidarla primero' });
 
-            invoice.set({ ...(await buildData(req.body, invoice)), updatedAt: new Date() });
+            await applications.assertTargetFree(invoice, 'modificar');
+            const data = await buildData(req.body, invoice);
+            await applications.syncNote({ _id: invoice._id, dteType: data.dteType, documentType: data.documentType, documentDate: data.documentDate });
+            if (applications.isNote(data.dteType)) {
+                const calculated = calcInvoice([...data.lines, ...(await applications.linesFor(invoice._id))], false);
+                data.lines = calculated.lines;
+                data.totals = calculated.totals;
+            }
+            invoice.set({ ...data, updatedAt: new Date() });
             const saved = await invoice.save();
             res.json(toDto(saved));
         } catch (error) {
@@ -248,8 +275,13 @@ module.exports = function registerInvoices(app, mongoose) {
         }
     });
 
-    const changeStatus = (from, to, conflictMessage, errorMessage) => async (req, res) => {
+    // before: validación previa al cambio; after: efectos sobre las aplicaciones de documentos
+    const changeStatus = (from, to, conflictMessage, errorMessage, { before, after } = {}) => async (req, res) => {
         try {
+            if (before && mongoose.isValidObjectId(req.params.id)) {
+                const current = await Invoice.findById(req.params.id).select('-lines');
+                if (current && current.status === from) await before(current);
+            }
             const invoice = await Invoice.findOneAndUpdate(
                 { _id: req.params.id, status: from },
                 { status: to, updatedAt: new Date() },
@@ -261,15 +293,23 @@ module.exports = function registerInvoices(app, mongoose) {
                     ? res.status(409).json({ error: conflictMessage })
                     : res.status(404).json({ error: 'Factura no encontrada' });
             }
+            if (after) await after(invoice);
             res.json(toDto(invoice));
         } catch (error) {
             handleError(res, error, errorMessage);
         }
     };
 
-    app.post('/api/invoices/:id/annul', changeStatus('BORRADOR', 'ANULADA', 'Solo se puede anular una factura en borrador', 'Error al anular la factura'));
-    app.post('/api/invoices/:id/validate', changeStatus('BORRADOR', 'VALIDADA', 'Solo se puede validar una factura en borrador', 'Error al validar la factura'));
-    app.post('/api/invoices/:id/unvalidate', changeStatus('VALIDADA', 'BORRADOR', 'La factura no está validada', 'Error al desvalidar la factura'));
+    app.post('/api/invoices/:id/annul', changeStatus('BORRADOR', 'ANULADA', 'Solo se puede anular una factura en borrador', 'Error al anular la factura', {
+        before: (invoice) => applications.assertTargetFree(invoice, 'anular'),
+        after: (invoice) => applications.cancel(invoice._id)
+    }));
+    app.post('/api/invoices/:id/validate', changeStatus('BORRADOR', 'VALIDADA', 'Solo se puede validar una factura en borrador', 'Error al validar la factura', {
+        after: (invoice) => applications.promote(invoice._id)
+    }));
+    app.post('/api/invoices/:id/unvalidate', changeStatus('VALIDADA', 'BORRADOR', 'La factura no está validada', 'Error al desvalidar la factura', {
+        after: (invoice) => applications.demote(invoice._id)
+    }));
 
     // Una factura solo se elimina si es la última de su correlativo; las anteriores se conservan anulándolas.
     app.delete('/api/invoices/:id', async (req, res) => {
@@ -277,7 +317,9 @@ module.exports = function registerInvoices(app, mongoose) {
             const invoice = await Invoice.findById(req.params.id);
             if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
             if (invoice.status === 'VALIDADA') return res.status(409).json({ error: 'Una factura validada no se puede eliminar' });
+            await applications.assertTargetFree(invoice, 'eliminar');
             await deleteIfLast(invoice);
+            await applications.removeOf(invoice._id);
             res.json({ success: true, message: 'Factura eliminada correctamente' });
         } catch (error) {
             handleError(res, error, 'Error al eliminar la factura');
@@ -287,5 +329,6 @@ module.exports = function registerInvoices(app, mongoose) {
     return async function initInvoices() {
         await Invoice.init();
         await sequences.init();
+        await applications.init();
     };
 };

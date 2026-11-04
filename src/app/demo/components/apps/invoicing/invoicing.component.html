@@ -2,6 +2,41 @@
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
 
+    <p-dialog [(visible)]="applicationsDialog" [modal]="true" [style]="{ width: '60rem', maxWidth: '95vw' }" [header]="'Aplicaciones de notas · ' + (applicationsTarget?.documentNumber || '')">
+        <div class="grid mb-2" *ngIf="applicationsTarget">
+            <div class="col-12 md:col-4"><span class="text-color-secondary">Total del crédito fiscal</span><div class="font-bold">{{ applicationsTarget.totals?.total | number: '1.2-2' }}</div></div>
+            <div class="col-12 md:col-4"><span class="text-color-secondary">Efecto neto de notas</span><div class="font-bold">{{ applicationsNet | number: '1.2-2' }}</div></div>
+            <div class="col-12 md:col-4"><span class="text-color-secondary">Saldo</span><div class="font-bold">{{ (applicationsTarget.totals?.total || 0) + applicationsNet | number: '1.2-2' }}</div></div>
+        </div>
+        <p-table [value]="targetApplications" responsiveLayout="scroll" styleClass="p-datatable-sm" [loading]="applicationsLoading">
+            <ng-template pTemplate="header">
+                <tr>
+                    <th>Fecha nota</th>
+                    <th>Nº Nota</th>
+                    <th>Tipo</th>
+                    <th>Efecto</th>
+                    <th class="text-right">%</th>
+                    <th class="text-right">Monto</th>
+                    <th>Estado</th>
+                </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-a>
+                <tr>
+                    <td>{{ a.noteDate | date: 'dd/MM/yyyy':'UTC' }}</td>
+                    <td>{{ a.noteNumber }}</td>
+                    <td>{{ a.noteDocumentType }}</td>
+                    <td>{{ a.effect === 'INCREASE' ? 'Incrementa saldo' : 'Reduce saldo' }}</td>
+                    <td class="text-right">{{ a.percent | number: '1.2-2' }}</td>
+                    <td class="text-right">{{ (a.effect === 'INCREASE' ? a.amount : -a.amount) | number: '1.2-2' }}</td>
+                    <td><p-tag [value]="a.status" [severity]="a.status === 'REAL' ? 'success' : a.status === 'ANULADA' ? 'danger' : 'warning'"></p-tag></td>
+                </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+                <tr><td colspan="7" class="text-center">Este crédito fiscal no tiene aplicaciones de notas.</td></tr>
+            </ng-template>
+        </p-table>
+    </p-dialog>
+
     <!-- Listado -->
     <ng-container *ngIf="view === 'list'">
         <p-toolbar styleClass="mb-4">
@@ -42,6 +77,7 @@
                     <td>
                         <div class="flex align-items-center gap-2 flex-nowrap">
                             <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="openInvoice(row)"></button>
+                            <button *ngIf="row.dteType === '03'" pButton pRipple icon="pi pi-list" class="p-button-rounded p-button-outlined" title="Ver aplicaciones de notas" (click)="viewApplications(row)"></button>
                             <button *ngIf="row.status !== 'VALIDADA'" pButton pRipple icon="pi pi-check" class="p-button-rounded p-button-info" title="Validar factura" [disabled]="row.status === 'ANULADA'" (click)="validateRow(row)"></button>
                             <button *ngIf="row.status === 'VALIDADA'" pButton pRipple icon="pi pi-lock-open" class="p-button-rounded p-button-help" title="Desvalidar factura para poder editarla" (click)="unvalidateRow(row)"></button>
                             <button pButton pRipple icon="pi pi-ban" class="p-button-rounded p-button-secondary" title="Anular factura y conservar el correlativo" [disabled]="row.status === 'ANULADA' || row.status === 'VALIDADA'" (click)="annulInvoice(row)"></button>
@@ -63,6 +99,7 @@
                 <button pButton pRipple label="Guardar" icon="pi pi-save" class="p-button-text mr-2" [disabled]="saving || readonly" (click)="save()"></button>
                 <button *ngIf="isDraft" pButton pRipple label="Validar" icon="pi pi-check" class="p-button-text p-button-info mr-2" (click)="validate()"></button>
                 <button *ngIf="isValidated" pButton pRipple label="Desvalidar" icon="pi pi-lock-open" class="p-button-text p-button-help mr-2" (click)="unvalidate()"></button>
+                <button *ngIf="isSaved && selectedDocumentType?.dteType === '03'" pButton pRipple label="Ver aplicaciones" icon="pi pi-list" class="p-button-text mr-2" (click)="viewApplications(invoice)"></button>
                 <button pButton pRipple label="Salir" icon="pi pi-sign-out" class="p-button-text" (click)="exit()"></button>
             </ng-template>
             <ng-template pTemplate="right">
@@ -70,7 +107,7 @@
             </ng-template>
         </p-toolbar>
 
-        <p-tabView [(activeIndex)]="activeTab">
+        <p-tabView [(activeIndex)]="activeTab" (onChange)="onTabChange($event.index)">
             <!-- Imagen 1: Movimientos (encabezado) -->
             <p-tabPanel header="Movimientos">
                 <div class="grid p-fluid">
@@ -136,9 +173,123 @@
                             <label for="accountingDescription">Descripción Contable</label>
                             <textarea pInputTextarea id="accountingDescription" rows="3" [(ngModel)]="invoice.accountingDescription" [disabled]="readonly"></textarea>
                         </div>
-                        <button pButton pRipple type="button" label="Ir a Detalle de Factura" icon="pi pi-arrow-right" class="w-auto" (click)="goToDetail()"></button>
+                        <button pButton pRipple type="button" label="{{ isNote ? 'Ir a Aplicación de Documentos' : 'Ir a Detalle de Factura' }}" icon="pi pi-arrow-right" class="w-auto" (click)="goToDetail()"></button>
                     </div>
                 </div>
+            </p-tabPanel>
+
+            <!-- Aplicación de documentos (solo notas de débito y crédito) -->
+            <p-tabPanel header="Aplicación de Documentos" *ngIf="isNote">
+                <p *ngIf="!isSaved" class="text-color-secondary">Guarde la nota para poder aplicar documentos.</p>
+                <ng-container *ngIf="isSaved">
+                    <div class="flex flex-wrap align-items-center gap-3 mb-3">
+                        <div class="flex align-items-center"><p-radioButton name="scope" value="current" [(ngModel)]="applyScope" inputId="scopeCurrent" (onClick)="loadApplicable()"></p-radioButton><label for="scopeCurrent" class="ml-2 mb-0">Mes de la nota</label></div>
+                        <div class="flex align-items-center"><p-radioButton name="scope" value="all" [(ngModel)]="applyScope" inputId="scopeAll" (onClick)="loadApplicable()"></p-radioButton><label for="scopeAll" class="ml-2 mb-0">Todas</label></div>
+                        <div class="flex align-items-center"><p-radioButton name="scope" value="period" [(ngModel)]="applyScope" inputId="scopePeriod"></p-radioButton><label for="scopePeriod" class="ml-2 mb-0">Período</label></div>
+                        <ng-container *ngIf="applyScope === 'period'">
+                            <p-calendar [(ngModel)]="periodFrom" view="month" dateFormat="mm/yy" placeholder="Desde" appendTo="body" [readonlyInput]="true"></p-calendar>
+                            <p-calendar [(ngModel)]="periodTo" view="month" dateFormat="mm/yy" placeholder="Hasta" appendTo="body" [readonlyInput]="true"></p-calendar>
+                            <button pButton pRipple type="button" icon="pi pi-check" class="p-button-outlined" title="Aplicar filtro" (click)="loadApplicable()"></button>
+                        </ng-container>
+                    </div>
+
+                    <p-table [value]="applicable" [(selection)]="selectedTargets" dataKey="id" responsiveLayout="scroll" styleClass="p-datatable-sm" [scrollable]="true" scrollHeight="240px">
+                        <ng-template pTemplate="caption">Documentos por aplicar (créditos fiscales)</ng-template>
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th style="width: 3rem"></th>
+                                <th>Tipo Documento</th>
+                                <th>Nº Documento</th>
+                                <th>Fecha</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">Saldo</th>
+                                <th class="text-right">Valor Aplicado Real</th>
+                                <th class="text-right">Valor Aplicado Temporal</th>
+                                <th>Concepto</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="body" let-t>
+                            <tr>
+                                <td><p-tableCheckbox [value]="t" [disabled]="readonly || availableOf(t) <= 0"></p-tableCheckbox></td>
+                                <td>{{ t.documentType }}</td>
+                                <td>{{ t.documentNumber }}</td>
+                                <td>{{ t.documentDate | date: 'dd/MM/yyyy':'UTC' }}</td>
+                                <td class="text-right">{{ t.total | number: '1.2-2' }}</td>
+                                <td class="text-right">{{ t.balance | number: '1.2-2' }}</td>
+                                <td class="text-right">{{ t.appliedReal | number: '1.2-2' }}</td>
+                                <td class="text-right">{{ t.appliedTemporal | number: '1.2-2' }}</td>
+                                <td>{{ t.billToName }}</td>
+                            </tr>
+                        </ng-template>
+                        <ng-template pTemplate="emptymessage">
+                            <tr><td colspan="9" class="text-center">No hay créditos fiscales en el período seleccionado.</td></tr>
+                        </ng-template>
+                    </p-table>
+
+                    <div class="grid p-fluid mt-3">
+                        <div class="col-12 md:col-4">
+                            <div class="flex align-items-center gap-3 mb-3">
+                                <div class="flex align-items-center"><p-radioButton name="applyMode" value="PERCENT" [(ngModel)]="applyMode" inputId="modePercent" [disabled]="readonly"></p-radioButton><label for="modePercent" class="ml-2 mb-0">Porcentaje</label></div>
+                                <div class="flex align-items-center"><p-radioButton name="applyMode" value="AMOUNT" [(ngModel)]="applyMode" inputId="modeAmount" [disabled]="readonly"></p-radioButton><label for="modeAmount" class="ml-2 mb-0">Monto</label></div>
+                            </div>
+                            <div class="field">
+                                <label>%</label>
+                                <p-inputNumber [(ngModel)]="applyPercent" [min]="0" [max]="isDebitNote ? 100000 : 100" [maxFractionDigits]="2" [disabled]="readonly || applyMode !== 'PERCENT'"></p-inputNumber>
+                            </div>
+                            <div class="field">
+                                <label>Valor Base</label>
+                                <input pInputText [value]="singleTarget ? (singleTarget.total | number: '1.2-2') : ''" disabled />
+                            </div>
+                            <div class="field">
+                                <label>Monto a Aplicar</label>
+                                <p-inputNumber *ngIf="applyMode === 'AMOUNT'" [(ngModel)]="applyAmount" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2" [disabled]="readonly"></p-inputNumber>
+                                <input *ngIf="applyMode === 'PERCENT'" pInputText [value]="applyAmountPreview !== null ? (applyAmountPreview | number: '1.2-2') : 'Según cada documento'" disabled />
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button pButton pRipple type="button" label="Agregar / Actualizar" icon="pi pi-plus" class="p-button-outlined" [disabled]="readonly" (click)="addApplication()"></button>
+                                <button pButton pRipple type="button" label="Eliminar" icon="pi pi-times" class="p-button-outlined p-button-danger" [disabled]="readonly || !selectedApplied" (click)="removeApplication()"></button>
+                            </div>
+                            <small class="block mt-2 text-color-secondary">{{ isDebitNote ? 'La nota de débito incrementa el saldo del crédito fiscal.' : 'La nota de crédito reduce el saldo del crédito fiscal.' }} Cada aplicación agrega su línea de ajuste al detalle. Son temporales hasta que la nota se valida; entonces pasan a reales.</small>
+                        </div>
+                        <div class="col-12 md:col-8">
+                            <p-table [value]="applied" [(selection)]="selectedApplied" selectionMode="single" dataKey="id" responsiveLayout="scroll" styleClass="p-datatable-sm" [scrollable]="true" scrollHeight="260px">
+                                <ng-template pTemplate="caption">Detalle documentos aplicados</ng-template>
+                                <ng-template pTemplate="header">
+                                    <tr>
+                                        <th>Tipo Doc. Aplicado</th>
+                                        <th>Fecha Doc. Aplicado</th>
+                                        <th>Nº Doc. Aplicado</th>
+                                        <th class="text-right">Base</th>
+                                        <th class="text-right">%</th>
+                                        <th class="text-right">Aplicado</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="body" let-a>
+                                    <tr [pSelectableRow]="a">
+                                        <td>{{ a.targetDocumentType }}</td>
+                                        <td>{{ a.targetDate | date: 'dd/MM/yyyy':'UTC' }}</td>
+                                        <td>{{ a.targetNumber }}</td>
+                                        <td class="text-right">{{ a.baseValue | number: '1.2-2' }}</td>
+                                        <td class="text-right">{{ a.percent | number: '1.2-2' }}</td>
+                                        <td class="text-right">{{ a.amount | number: '1.2-2' }}</td>
+                                        <td><p-tag [value]="a.status" [severity]="a.status === 'REAL' ? 'success' : 'warning'"></p-tag></td>
+                                    </tr>
+                                </ng-template>
+                                <ng-template pTemplate="emptymessage">
+                                    <tr><td colspan="7" class="text-center">Sin documentos aplicados.</td></tr>
+                                </ng-template>
+                                <ng-template pTemplate="footer">
+                                    <tr *ngIf="applied.length">
+                                        <td colspan="5" class="text-right font-semibold">Total aplicado</td>
+                                        <td class="text-right font-semibold">{{ totalApplied | number: '1.2-2' }}</td>
+                                        <td></td>
+                                    </tr>
+                                </ng-template>
+                            </p-table>
+                        </div>
+                    </div>
+                </ng-container>
             </p-tabPanel>
 
             <!-- Imagen 2: Detalle Movimientos -->
@@ -194,8 +345,8 @@
 
                 <div class="flex flex-wrap gap-2 my-3">
                     <button pButton pRipple type="button" label="Agregar" icon="pi pi-plus" class="p-button-outlined" [disabled]="readonly" (click)="addLine()"></button>
-                    <button pButton pRipple type="button" label="Modificar" icon="pi pi-pencil" class="p-button-outlined" [disabled]="readonly || !selectedLine" (click)="modifyLine()"></button>
-                    <button pButton pRipple type="button" label="Eliminar" icon="pi pi-trash" class="p-button-outlined p-button-danger" [disabled]="readonly || !selectedLine" (click)="removeLine()"></button>
+                    <button pButton pRipple type="button" label="Modificar" icon="pi pi-pencil" class="p-button-outlined" [disabled]="readonly || !selectedLine || selectedLine.applicationTargetId" (click)="modifyLine()"></button>
+                    <button pButton pRipple type="button" label="Eliminar" icon="pi pi-trash" class="p-button-outlined p-button-danger" [disabled]="readonly || !selectedLine || selectedLine.applicationTargetId" (click)="removeLine()"></button>
                 </div>
 
                 <p-table [value]="lines" [(selection)]="selectedLine" selectionMode="single" (onRowSelect)="selectLine($event.data)" (onRowUnselect)="resetLineForm()" responsiveLayout="scroll" styleClass="p-datatable-sm" [scrollable]="true" scrollHeight="260px">
@@ -214,7 +365,7 @@
                         </tr>
                     </ng-template>
                     <ng-template pTemplate="body" let-l>
-                        <tr [pSelectableRow]="l">
+                        <tr [pSelectableRow]="l" [pSelectableRowDisabled]="!!l.applicationTargetId">
                             <td>{{ l.description }}</td>
                             <td class="text-right">{{ l.value | number: '1.2-2' }}</td>
                             <td class="text-right">{{ l.quantity | number: '1.0-4' }}</td>

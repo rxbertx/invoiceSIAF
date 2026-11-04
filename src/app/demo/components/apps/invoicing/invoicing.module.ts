@@ -16,6 +16,7 @@ import { RadioButtonModule } from 'primeng/radiobutton';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
+import { DialogModule } from 'primeng/dialog';
 import { InvoicingRoutingModule } from './invoicing-routing.module';
 import { InvoicingComponent } from './invoicing.component';
 
@@ -38,7 +39,8 @@ import { InvoicingComponent } from './invoicing.component';
         RadioButtonModule,
         ConfirmDialogModule,
         TabViewModule,
-        TagModule
+        TagModule,
+        DialogModule
     ],
     declarations: [InvoicingComponent]
 })

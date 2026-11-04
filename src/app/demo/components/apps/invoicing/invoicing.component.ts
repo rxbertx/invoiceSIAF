@@ -55,6 +55,17 @@ export class InvoicingComponent implements OnInit {
     regimeOptions: Option[] = [];
     defaultUnit = '';
 
+    applyScope: 'current' | 'all' | 'period' = 'current';
+    periodFrom: Date | null = null;
+    periodTo: Date | null = null;
+    applicable: any[] = [];
+    selectedTargets: any[] = [];
+    applied: any[] = [];
+    selectedApplied: any = null;
+    applyMode: 'PERCENT' | 'AMOUNT' = 'PERCENT';
+    applyPercent: number | null = null;
+    applyAmount: number | null = null;
+
     documentTypeList: any[] = [];
     documentTypes: Option[] = [];
 
@@ -219,7 +230,12 @@ export class InvoicingComponent implements OnInit {
     private openEditor() {
         this.submitted = false;
         this.activeTab = 0;
-        this.resetLineForm();
+        this.applied = [];
+        this.applicable = [];
+        this.selectedTargets = [];
+        this.applyScope = 'current';
+        this.periodFrom = this.periodTo = null;
+        this.resetApplyForm();
         this.recalculate();
         this.view = 'edit';
     }
@@ -256,6 +272,7 @@ export class InvoicingComponent implements OnInit {
             return;
         }
         this.activeTab = 1;
+        if (this.isNote) this.loadApplications();
     }
 
     private headerIncomplete(): boolean {
@@ -284,7 +301,7 @@ export class InvoicingComponent implements OnInit {
     }
 
     selectLine(line: any) {
-        if (this.readonly) return;
+        if (this.readonly || line.applicationTargetId) return;
         this.lineForm = { ...line };
         this.useDefaultUnit = !!this.defaultUnit && line.unit === this.defaultUnit;
     }
@@ -418,7 +435,10 @@ export class InvoicingComponent implements OnInit {
             this.invoiceService.validate(this.invoice.id),
             'Factura validada; ya no se puede editar',
             'No se pudo validar la factura',
-            (updated) => (this.invoice = { ...this.invoice, status: updated?.status || 'VALIDADA' })
+            (updated) => {
+                this.invoice = { ...this.invoice, status: updated?.status || 'VALIDADA' };
+                if (this.isNote) this.loadApplications();
+            }
         );
     }
 
@@ -427,7 +447,10 @@ export class InvoicingComponent implements OnInit {
             this.invoiceService.unvalidate(this.invoice.id),
             'Factura desvalidada; ya se puede editar',
             'No se pudo desvalidar la factura',
-            (updated) => (this.invoice = { ...this.invoice, status: updated?.status || 'BORRADOR' })
+            (updated) => {
+                this.invoice = { ...this.invoice, status: updated?.status || 'BORRADOR' };
+                if (this.isNote) this.loadApplications();
+            }
         );
     }
 
@@ -485,5 +508,150 @@ export class InvoicingComponent implements OnInit {
 
     private showError(detail: string) {
         this.messageService.add({ severity: 'error', summary: 'Error', detail });
+    }
+
+    // ----- Aplicaciones de notas sobre un crédito fiscal -----
+    applicationsDialog = false;
+    applicationsLoading = false;
+    applicationsTarget: any = null;
+    targetApplications: any[] = [];
+
+    get applicationsNet(): number {
+        return round2(
+            this.targetApplications
+                .filter((a) => a.status !== 'ANULADA')
+                .reduce((s, a) => s + (a.effect === 'INCREASE' ? a.amount : -a.amount), 0)
+        );
+    }
+
+    viewApplications(target: any) {
+        this.applicationsTarget = target;
+        this.targetApplications = [];
+        this.applicationsLoading = true;
+        this.applicationsDialog = true;
+        this.invoiceService.queryApplications({ targetId: target.id }).subscribe({
+            next: (rows) => {
+                this.targetApplications = rows;
+                this.applicationsLoading = false;
+            },
+            error: (err) => {
+                this.applicationsLoading = false;
+                this.showError(err?.error?.error || 'No se pudieron cargar las aplicaciones');
+            }
+        });
+    }
+
+    // ----- Aplicación de documentos (notas de débito/crédito) -----
+    get isNote(): boolean {
+        return ['05', '06'].includes(this.selectedDocumentType?.dteType);
+    }
+
+    onTabChange(index: number) {
+        if (index === 1 && this.isNote && this.isSaved) this.loadApplications();
+    }
+
+    loadApplications() {
+        if (!this.isSaved) return;
+        this.invoiceService.getApplications(this.invoice.id).subscribe({
+            next: (rows) => {
+                this.applied = rows;
+                this.selectedApplied = null;
+            },
+            error: (err) => this.showError(err?.error?.error || 'No se pudieron cargar las aplicaciones')
+        });
+        this.loadApplicable();
+    }
+
+    loadApplicable() {
+        const monthStr = (d: Date | null) => (d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}` : '');
+        if (this.applyScope === 'period' && !this.periodFrom) {
+            this.applicable = [];
+            return;
+        }
+        this.invoiceService.getApplicable(this.invoice.id, this.applyScope, monthStr(this.periodFrom), monthStr(this.periodTo)).subscribe({
+            next: (rows) => {
+                this.applicable = rows;
+                this.selectedTargets = [];
+                this.resetApplyForm();
+            },
+            error: (err) => this.showError(err?.error?.error || 'No se pudieron cargar los documentos por aplicar')
+        });
+    }
+
+    availableOf(row: any): number {
+        return row.available === null || row.available === undefined ? Infinity : row.available;
+    }
+
+    get isDebitNote(): boolean {
+        return this.selectedDocumentType?.dteType === '06';
+    }
+
+    get singleTarget(): any | null {
+        return this.selectedTargets.length === 1 ? this.selectedTargets[0] : null;
+    }
+
+    get applyAmountPreview(): number | null {
+        const target = this.singleTarget;
+        if (!target) return null;
+        return this.applyMode === 'PERCENT' ? round2(((this.applyPercent || 0) * target.total) / 100) : this.applyAmount;
+    }
+
+    resetApplyForm() {
+        this.applyMode = 'PERCENT';
+        this.applyPercent = null;
+        this.applyAmount = null;
+    }
+
+    addApplication() {
+        if (!this.selectedTargets.length) return this.showError('Seleccione al menos un documento');
+        if (this.applyMode === 'PERCENT' && !(this.applyPercent && this.applyPercent > 0 && this.applyPercent <= 100)) {
+            return this.showError('Ingrese un porcentaje mayor a 0 y hasta 100');
+        }
+        if (this.applyMode === 'AMOUNT') {
+            if (!this.singleTarget) return this.showError('El monto fijo solo se puede aplicar a un documento; use porcentaje para varios');
+            if (!(this.applyAmount && this.applyAmount > 0)) return this.showError('Ingrese el monto a aplicar');
+        }
+        const selectedIds = new Set(this.selectedTargets.map((t) => t.id));
+        const kept = this.applied
+            .filter((a) => !selectedIds.has(a.targetId))
+            .map((a) => ({ targetId: a.targetId, mode: 'AMOUNT', amount: a.amount }));
+        const added = this.selectedTargets.map((t) => ({ targetId: t.id, mode: this.applyMode, percent: this.applyPercent, amount: this.applyAmount }));
+        this.persistApplications([...kept, ...added], 'Aplicación agregada (temporal hasta validar la nota)');
+    }
+
+    removeApplication() {
+        if (!this.selectedApplied) return;
+        const rest = this.applied
+            .filter((a) => a.targetId !== this.selectedApplied.targetId)
+            .map((a) => ({ targetId: a.targetId, mode: 'AMOUNT', amount: a.amount }));
+        this.persistApplications(rest, 'Aplicación eliminada');
+    }
+
+    private persistApplications(items: any[], success: string) {
+        const unitName = this.unitOptions.find((o) => o.value === this.defaultUnit)?.label ?? '';
+        this.invoiceService.saveApplications(this.invoice.id, items, this.defaultUnit, unitName).subscribe({
+            next: () => {
+                this.messageService.add({ severity: 'success', summary: 'Éxito', detail: success });
+                this.loadApplications();
+                this.refreshLines();
+            },
+            error: (err) => this.showError(err?.error?.error || 'No se pudo guardar la aplicación')
+        });
+    }
+
+    // El servidor genera las líneas de ajuste; se traen sin pisar los cambios sin guardar del encabezado
+    private refreshLines() {
+        this.invoiceService.getById(this.invoice.id).subscribe({
+            next: (data) => {
+                this.lines = data.lines || [];
+                this.recalculate();
+                this.resetLineForm();
+            },
+            error: () => this.showError('No se pudo actualizar el detalle de la nota')
+        });
+    }
+
+    get totalApplied(): number {
+        return round2(this.applied.reduce((s, a) => s + a.amount, 0));
     }
 }

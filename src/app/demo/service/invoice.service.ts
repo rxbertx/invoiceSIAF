@@ -41,4 +41,23 @@ export class InvoiceService {
     delete(id: string): Observable<any> {
         return this.http.delete<any>(`${this.apiUrl}/${id}`);
     }
+
+    getApplicable(id: string, scope: string, from?: string, to?: string): Observable<any[]> {
+        const params: Record<string, string> = { scope };
+        if (from) params['from'] = from;
+        if (to) params['to'] = to;
+        return this.http.get<any[]>(`${this.apiUrl}/${id}/applicable`, { params });
+    }
+
+    getApplications(id: string): Observable<any[]> {
+        return this.http.get<any[]>(`${this.apiUrl}/${id}/applications`);
+    }
+
+    saveApplications(id: string, applications: any[], unit: string, unitName: string): Observable<any[]> {
+        return this.http.put<any[]>(`${this.apiUrl}/${id}/applications`, { applications, unit, unitName });
+    }
+
+    queryApplications(filters: Record<string, string>): Observable<any[]> {
+        return this.http.get<any[]>('/api/invoice-applications', { params: filters });
+    }
 }
