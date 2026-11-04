@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Observable } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ClientService } from 'src/app/demo/service/client.service';
 import { DocumentTypeService } from 'src/app/demo/service/document-type.service';
@@ -125,7 +126,19 @@ export class InvoicingComponent implements OnInit {
     }
 
     get readonly(): boolean {
-        return this.invoice.status === 'ANULADA';
+        return this.invoice.status === 'ANULADA' || this.invoice.status === 'VALIDADA';
+    }
+
+    get isValidated(): boolean {
+        return this.invoice.status === 'VALIDADA';
+    }
+
+    get isDraft(): boolean {
+        return this.isSaved && this.invoice.status === 'BORRADOR';
+    }
+
+    statusSeverity(status: string): string {
+        return status === 'ANULADA' ? 'danger' : status === 'VALIDADA' ? 'success' : 'info';
     }
 
     get isSaved(): boolean {
@@ -397,6 +410,42 @@ export class InvoicingComponent implements OnInit {
                     error: (err) => this.showError(err?.error?.error || 'No se pudo anular la factura')
                 });
             }
+        });
+    }
+
+    validate() {
+        this.changeStatus(
+            this.invoiceService.validate(this.invoice.id),
+            'Factura validada; ya no se puede editar',
+            'No se pudo validar la factura',
+            (updated) => (this.invoice = { ...this.invoice, status: updated?.status || 'VALIDADA' })
+        );
+    }
+
+    unvalidate() {
+        this.changeStatus(
+            this.invoiceService.unvalidate(this.invoice.id),
+            'Factura desvalidada; ya se puede editar',
+            'No se pudo desvalidar la factura',
+            (updated) => (this.invoice = { ...this.invoice, status: updated?.status || 'BORRADOR' })
+        );
+    }
+
+    validateRow(row: any) {
+        this.changeStatus(this.invoiceService.validate(row.id), 'Factura validada', 'No se pudo validar la factura', () => this.load());
+    }
+
+    unvalidateRow(row: any) {
+        this.changeStatus(this.invoiceService.unvalidate(row.id), 'Factura desvalidada', 'No se pudo desvalidar la factura', () => this.load());
+    }
+
+    private changeStatus(request: Observable<any>, success: string, failure: string, done: (updated: any) => void) {
+        request.subscribe({
+            next: (updated) => {
+                done(updated);
+                this.messageService.add({ severity: 'success', summary: 'Éxito', detail: success });
+            },
+            error: (err) => this.showError(err?.error?.error || failure)
         });
     }
 

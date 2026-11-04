@@ -71,7 +71,7 @@ module.exports = function registerInvoices(app, mongoose) {
         regimeName: { type: String, default: '' },
         isExternalSale: { type: Boolean, default: false },
         accountingDescription: { type: String, default: '' },
-        status: { type: String, enum: ['BORRADOR', 'ANULADA'], default: 'BORRADOR' },
+        status: { type: String, enum: ['BORRADOR', 'VALIDADA', 'ANULADA'], default: 'BORRADOR' },
         lines: { type: [lineSchema], default: [] },
         totals: {
             ventaTotal: { type: Number, default: 0 },
@@ -199,7 +199,7 @@ module.exports = function registerInvoices(app, mongoose) {
             const invoices = await Invoice.find().select('-lines').sort({ documentDate: -1, documentNumber: -1 });
             const rows = await Promise.all(invoices.map(async (invoice) => ({
                 ...toDto(invoice),
-                canDelete: await canDeleteInvoice(invoice)
+                canDelete: invoice.status !== 'VALIDADA' && await canDeleteInvoice(invoice)
             })));
             res.json(rows);
         } catch (error) {
@@ -238,6 +238,8 @@ module.exports = function registerInvoices(app, mongoose) {
             if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
             if (invoice.status === 'ANULADA') return res.status(409).json({ error: 'Una factura anulada no se puede modificar' });
 
+            if (invoice.status === 'VALIDADA') return res.status(409).json({ error: 'Una factura validada no se puede modificar; debe desvalidarla primero' });
+
             invoice.set({ ...(await buildData(req.body, invoice)), updatedAt: new Date() });
             const saved = await invoice.save();
             res.json(toDto(saved));
@@ -246,30 +248,35 @@ module.exports = function registerInvoices(app, mongoose) {
         }
     });
 
-    app.post('/api/invoices/:id/annul', async (req, res) => {
+    const changeStatus = (from, to, conflictMessage, errorMessage) => async (req, res) => {
         try {
             const invoice = await Invoice.findOneAndUpdate(
-                { _id: req.params.id, status: 'BORRADOR' },
-                { status: 'ANULADA', updatedAt: new Date() },
+                { _id: req.params.id, status: from },
+                { status: to, updatedAt: new Date() },
                 { new: true }
             );
             if (!invoice) {
                 const exists = await Invoice.exists({ _id: req.params.id });
                 return exists
-                    ? res.status(409).json({ error: 'La factura ya está anulada' })
+                    ? res.status(409).json({ error: conflictMessage })
                     : res.status(404).json({ error: 'Factura no encontrada' });
             }
             res.json(toDto(invoice));
         } catch (error) {
-            handleError(res, error, 'Error al anular la factura');
+            handleError(res, error, errorMessage);
         }
-    });
+    };
+
+    app.post('/api/invoices/:id/annul', changeStatus('BORRADOR', 'ANULADA', 'Solo se puede anular una factura en borrador', 'Error al anular la factura'));
+    app.post('/api/invoices/:id/validate', changeStatus('BORRADOR', 'VALIDADA', 'Solo se puede validar una factura en borrador', 'Error al validar la factura'));
+    app.post('/api/invoices/:id/unvalidate', changeStatus('VALIDADA', 'BORRADOR', 'La factura no está validada', 'Error al desvalidar la factura'));
 
     // Una factura solo se elimina si es la última de su correlativo; las anteriores se conservan anulándolas.
     app.delete('/api/invoices/:id', async (req, res) => {
         try {
             const invoice = await Invoice.findById(req.params.id);
             if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
+            if (invoice.status === 'VALIDADA') return res.status(409).json({ error: 'Una factura validada no se puede eliminar' });
             await deleteIfLast(invoice);
             res.json({ success: true, message: 'Factura eliminada correctamente' });
         } catch (error) {

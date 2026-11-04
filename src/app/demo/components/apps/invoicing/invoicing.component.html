@@ -38,11 +38,13 @@
                     <td>{{ row.documentType }}</td>
                     <td>{{ row.billToName }}</td>
                     <td class="text-right">{{ row.totals?.total | number: '1.2-2' }}</td>
-                    <td><p-tag [value]="row.status" [severity]="row.status === 'ANULADA' ? 'danger' : 'info'"></p-tag></td>
+                    <td><p-tag [value]="row.status" [severity]="statusSeverity(row.status)"></p-tag></td>
                     <td>
                         <div class="flex align-items-center gap-2 flex-nowrap">
                             <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="openInvoice(row)"></button>
-                            <button pButton pRipple icon="pi pi-ban" class="p-button-rounded p-button-secondary" title="Anular factura y conservar el correlativo" [disabled]="row.status === 'ANULADA'" (click)="annulInvoice(row)"></button>
+                            <button *ngIf="row.status !== 'VALIDADA'" pButton pRipple icon="pi pi-check" class="p-button-rounded p-button-info" title="Validar factura" [disabled]="row.status === 'ANULADA'" (click)="validateRow(row)"></button>
+                            <button *ngIf="row.status === 'VALIDADA'" pButton pRipple icon="pi pi-lock-open" class="p-button-rounded p-button-help" title="Desvalidar factura para poder editarla" (click)="unvalidateRow(row)"></button>
+                            <button pButton pRipple icon="pi pi-ban" class="p-button-rounded p-button-secondary" title="Anular factura y conservar el correlativo" [disabled]="row.status === 'ANULADA' || row.status === 'VALIDADA'" (click)="annulInvoice(row)"></button>
                             <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" title="Solo se puede eliminar la factura con el último correlativo" [disabled]="!row.canDelete" (click)="deleteInvoice(row)"></button>
                         </div>
                     </td>
@@ -59,10 +61,12 @@
         <p-toolbar styleClass="mb-4">
             <ng-template pTemplate="left">
                 <button pButton pRipple label="Guardar" icon="pi pi-save" class="p-button-text mr-2" [disabled]="saving || readonly" (click)="save()"></button>
+                <button *ngIf="isDraft" pButton pRipple label="Validar" icon="pi pi-check" class="p-button-text p-button-info mr-2" (click)="validate()"></button>
+                <button *ngIf="isValidated" pButton pRipple label="Desvalidar" icon="pi pi-lock-open" class="p-button-text p-button-help mr-2" (click)="unvalidate()"></button>
                 <button pButton pRipple label="Salir" icon="pi pi-sign-out" class="p-button-text" (click)="exit()"></button>
             </ng-template>
             <ng-template pTemplate="right">
-                <p-tag *ngIf="isSaved" [value]="invoice.documentNumber + ' · ' + invoice.status" [severity]="readonly ? 'danger' : 'info'"></p-tag>
+                <p-tag *ngIf="isSaved" [value]="invoice.documentNumber + ' · ' + invoice.status" [severity]="statusSeverity(invoice.status)"></p-tag>
             </ng-template>
         </p-toolbar>
 

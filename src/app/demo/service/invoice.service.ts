@@ -30,6 +30,14 @@ export class InvoiceService {
         return this.http.post<any>(`${this.apiUrl}/${id}/annul`, {});
     }
 
+    validate(id: string): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/${id}/validate`, {});
+    }
+
+    unvalidate(id: string): Observable<any> {
+        return this.http.post<any>(`${this.apiUrl}/${id}/unvalidate`, {});
+    }
+
     delete(id: string): Observable<any> {
         return this.http.delete<any>(`${this.apiUrl}/${id}`);
     }
