@@ -48,6 +48,10 @@ export class InvoicingComponent implements OnInit {
     clientOptions: Option[] = [];
     unitOptions: Option[] = [];
     conceptOptions: Option[] = [];
+    itemTypeOptions: Option[] = [];
+    itemTypeCodes: Record<string, string> = {};
+    customsOptions: Option[] = [];
+    regimeOptions: Option[] = [];
     defaultUnit = '';
 
     documentTypeList: any[] = [];
@@ -86,6 +90,38 @@ export class InvoicingComponent implements OnInit {
             },
             error: () => this.showError('No se pudo cargar el catálogo de unidades de medida')
         });
+        const exportLists: [string, (o: Option[]) => void][] = [
+            ['tipo-item', (o) => (this.itemTypeOptions = o)],
+            ['recinto-fiscal', (o) => (this.customsOptions = o)],
+            ['regimen', (o) => (this.regimeOptions = o)]
+        ];
+        for (const [catalog, assign] of exportLists) {
+            this.catalogs.getItems(catalog).subscribe({
+                next: (rows) => {
+                    const active = rows.filter((r) => r.active);
+                    if (catalog === 'tipo-item') active.forEach((r) => (this.itemTypeCodes[r.id] = String(r.code)));
+                    assign(active.map((r) => ({ label: `${r.code} - ${r.description}`, value: r.id })));
+                },
+                error: () => this.showError(`No se pudo cargar el catálogo ${catalog}`)
+            });
+        }
+    }
+
+    // Los datos de exportación solo aplican a la factura de exportación (DTE 11)
+    // Con tipo de item "Servicios" (código 2) no aplican aduana ni régimen
+    get showCustomsFields(): boolean {
+        return this.itemTypeCodes[this.invoice?.itemTypeId] !== '2';
+    }
+
+    onItemTypeChange() {
+        if (!this.showCustomsFields) {
+            this.invoice.customsId = null;
+            this.invoice.regimeId = null;
+        }
+    }
+
+    get isExport(): boolean {
+        return this.selectedDocumentType?.dteType === '11';
     }
 
     get readonly(): boolean {
@@ -211,6 +247,8 @@ export class InvoicingComponent implements OnInit {
 
     private headerIncomplete(): boolean {
         const required = ['documentDate', 'documentTypeId', 'clientId', 'billToName'];
+        if (this.isExport) required.push('itemTypeId');
+        if (this.isExport && this.showCustomsFields) required.push('customsId', 'regimeId');
         return required.some((f) => this.isInvalid(f));
     }
 
@@ -223,7 +261,7 @@ export class InvoicingComponent implements OnInit {
             description: '',
             quantity: 1,
             unitPrice: 0,
-            exempt: false,
+            exempt: this.isExport,
             valueWithIva: false
         };
     }
@@ -250,7 +288,7 @@ export class InvoicingComponent implements OnInit {
             unitName: this.unitOptions.find((o) => o.value === f.unit)?.label ?? '',
             quantity: f.quantity,
             unitPrice: f.unitPrice,
-            exempt: !!f.exempt,
+            exempt: this.isExport || !!f.exempt,
             valueWithIva: !!f.valueWithIva
         };
     }
@@ -278,10 +316,22 @@ export class InvoicingComponent implements OnInit {
         this.resetLineForm();
     }
 
+    // En exportación la venta es exenta: se marca la venta externa y cada ítem como exento
+    onDocumentTypeChange() {
+        if (this.isExport) {
+            this.invoice.isExternalSale = true;
+            this.lineForm.exempt = true;
+            this.lines = this.lines.map((l) => ({ ...l, exempt: true }));
+        } else {
+            this.invoice.itemTypeId = this.invoice.customsId = this.invoice.regimeId = null;
+        }
+        this.recalculate();
+    }
+
     private calculate(lines: any[]) {
         const calculated = lines.map((l) => {
             const gross = (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
-            const exempt = !!l.exempt;
+            const exempt = this.isExport || !!l.exempt;
             const base = exempt || !l.valueWithIva ? gross : gross / (1 + IVA_RATE);
             const iva = exempt ? 0 : l.valueWithIva ? gross - base : base * IVA_RATE;
             return { ...l, value: exempt ? 0 : round2(base), exemptValue: exempt ? round2(base) : 0, iva: round2(iva), ivaRetention: 0 };
@@ -350,9 +400,26 @@ export class InvoicingComponent implements OnInit {
         });
     }
 
+    annulInvoice(row: any) {
+        this.confirmationService.confirm({
+            message: `¿Desea anular la factura ${row.documentNumber}? El registro se conservará para no perder el correlativo.`,
+            header: 'Confirmar Anulación',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => {
+                this.invoiceService.annul(row.id).subscribe({
+                    next: () => {
+                        this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Factura anulada; el correlativo se conservó' });
+                        this.load();
+                    },
+                    error: (err) => this.showError(err?.error?.error || 'No se pudo anular la factura')
+                });
+            }
+        });
+    }
+
     deleteInvoice(row: any) {
         this.confirmationService.confirm({
-            message: `¿Está seguro de que desea eliminar la factura ${row.documentNumber}?`,
+            message: `¿Está seguro de que desea eliminar la factura ${row.documentNumber}? Solo se puede eliminar la que tenga el último correlativo y el contador se ajustará.`,
             header: 'Confirmar Eliminación',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {

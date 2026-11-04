@@ -8,6 +8,7 @@ const { GLOBAL_CATALOGS_DB } = require('./db-config');
 const CATALOGS = {
     'forma-pago': { label: 'Forma de pago', collection: 'forma_pago' },
     'paises': { label: 'Países', collection: 'paises', sort: { countryNumber: 1 } },
+    'departamentos': { label: 'Departamentos', collection: 'departamentos', sort: { departmentNumber: 1 } },
     'municipios': { label: 'Municipios', collection: 'municipios' },
     'recinto-fiscal': { label: 'Recinto Fiscal', collection: 'recinto_fiscal' },
     'regimen': { label: 'Régimen', collection: 'regimen' },
@@ -39,6 +40,10 @@ module.exports = function registerGlobalCatalogs(app, mongoose) {
         },
         municipios: {
             countryId: { type: mongoose.Schema.Types.ObjectId, default: null }
+        },
+        departamentos: {
+            departmentNumber: { type: Number, required: true, min: 1 },
+            countryId: { type: mongoose.Schema.Types.ObjectId, required: true }
         }
     };
 
@@ -68,6 +73,15 @@ module.exports = function registerGlobalCatalogs(app, mongoose) {
             if (body.countryId === null || body.countryId === '') {
                 data.countryId = null;
             } else {
+                if (!mongoose.isValidObjectId(body.countryId) || !(await models.paises.exists({ _id: body.countryId }))) {
+                    throw invalid('El país seleccionado no existe');
+                }
+                data.countryId = body.countryId;
+            }
+        }
+        if (key === 'departamentos') {
+            if (body.departmentNumber !== undefined) data.departmentNumber = Number(body.departmentNumber);
+            if (body.countryId !== undefined) {
                 if (!mongoose.isValidObjectId(body.countryId) || !(await models.paises.exists({ _id: body.countryId }))) {
                     throw invalid('El país seleccionado no existe');
                 }
@@ -132,8 +146,11 @@ module.exports = function registerGlobalCatalogs(app, mongoose) {
 
     app.delete('/api/global-catalogs/:catalog/:id', async (req, res) => {
         try {
-            if (req.catalogKey === 'paises' && (await models.municipios.exists({ countryId: req.params.id }))) {
-                return res.status(409).json({ error: 'No se puede eliminar: el país tiene municipios relacionados' });
+            if (req.catalogKey === 'paises' && (
+                (await models.municipios.exists({ countryId: req.params.id })) ||
+                (await models.departamentos.exists({ countryId: req.params.id }))
+            )) {
+                return res.status(409).json({ error: 'No se puede eliminar: el país tiene departamentos o municipios relacionados' });
             }
             const deleted = await req.catalogModel.findByIdAndDelete(req.params.id);
             if (!deleted) return res.status(404).json({ error: 'Registro no encontrado' });
@@ -299,6 +316,11 @@ module.exports = function registerGlobalCatalogs(app, mongoose) {
             const rows = seedData[key] || [];
             if (!rows.length || (await models[key].estimatedDocumentCount()) > 0) continue;
             let toInsert = rows;
+            if (key === 'departamentos') {
+                const home = await models.paises.findOne({ description: HOME_COUNTRY_DESCRIPTION });
+                if (!home) throw new Error('No se encontró El Salvador para relacionar los departamentos');
+                toInsert = rows.map((r) => ({ ...r, countryId: home._id }));
+            }
             if (key === 'municipios') {
                 const home = await models.paises.findOne({ description: HOME_COUNTRY_DESCRIPTION });
                 toInsert = rows.map((r) => ({ ...r, countryId: home && !FOREIGN_MUNICIPALITY.test(r.description) ? home._id : null }));

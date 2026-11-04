@@ -42,7 +42,8 @@
                     <td>
                         <div class="flex align-items-center gap-2 flex-nowrap">
                             <button pButton pRipple icon="pi pi-pencil" class="p-button-rounded p-button-success" (click)="openInvoice(row)"></button>
-                            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" [disabled]="row.status !== 'BORRADOR'" (click)="deleteInvoice(row)"></button>
+                            <button pButton pRipple icon="pi pi-ban" class="p-button-rounded p-button-secondary" title="Anular factura y conservar el correlativo" [disabled]="row.status === 'ANULADA'" (click)="annulInvoice(row)"></button>
+                            <button pButton pRipple icon="pi pi-trash" class="p-button-rounded p-button-warning" title="Solo se puede eliminar la factura con el último correlativo" [disabled]="!row.canDelete" (click)="deleteInvoice(row)"></button>
                         </div>
                     </td>
                 </tr>
@@ -78,11 +79,11 @@
                             </div>
                             <div class="field col-12 md:col-6">
                                 <label for="documentNumber">No. Documento</label>
-                                <input pInputText id="documentNumber" [(ngModel)]="invoice.documentNumber" [disabled]="isSaved" placeholder="Se genera automáticamente" />
+                                <input pInputText id="documentNumber" [ngModel]="invoice.documentNumber" disabled placeholder="Se genera automáticamente" />
                             </div>
                             <div class="field col-12 md:col-6">
                                 <label for="documentType">Tipo de Documento *</label>
-                                <p-dropdown inputId="documentType" [options]="documentTypes" [(ngModel)]="invoice.documentTypeId"                                 [disabled]="readonly" (onChange)="recalculate()" appendTo="body"></p-dropdown>
+                                <p-dropdown inputId="documentType" [options]="documentTypes" [(ngModel)]="invoice.documentTypeId"                                 [disabled]="readonly" (onChange)="onDocumentTypeChange()" appendTo="body"></p-dropdown>
                                 <small class="p-error" *ngIf="isInvalid('documentTypeId')">Obligatorio.</small>
                             </div>
                             <div class="field col-12">
@@ -95,16 +96,33 @@
                                 <input pInputText id="billToName" [(ngModel)]="invoice.billToName" [disabled]="readonly" />
                                 <small class="p-error" *ngIf="isInvalid('billToName')">Obligatorio.</small>
                             </div>
-                            <div class="field col-12 md:col-6">
-                                <label for="customsDeclarationNumber">No. Declaración de Mercancía</label>
-                                <input pInputText id="customsDeclarationNumber" [(ngModel)]="invoice.customsDeclarationNumber" [disabled]="readonly" />
-                            </div>
+                            <ng-container *ngIf="isExport">
+                                <div class="field col-12 md:col-6">
+                                    <label for="customsDeclarationNumber">No. Declaración de Mercancía</label>
+                                    <input pInputText id="customsDeclarationNumber" [(ngModel)]="invoice.customsDeclarationNumber" [disabled]="readonly" />
+                                </div>
+                                <div class="field col-12">
+                                    <label for="itemTypeId">Tipo de Item *</label>
+                                    <p-dropdown inputId="itemTypeId" [options]="itemTypeOptions"                                     [(ngModel)]="invoice.itemTypeId" (onChange)="onItemTypeChange()" [disabled]="readonly" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                                    <small class="p-error" *ngIf="isInvalid('itemTypeId')">Obligatorio.</small>
+                                </div>
+                                                                    <div class="field col-12" *ngIf="showCustomsFields">
+                                    <label for="customsId">Aduana *</label>
+                                    <p-dropdown inputId="customsId" [options]="customsOptions" [(ngModel)]="invoice.customsId" [disabled]="readonly" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                                    <small class="p-error" *ngIf="isInvalid('customsId')">Obligatorio.</small>
+                                </div>
+                                <div class="field col-12" *ngIf="showCustomsFields">
+                                    <label for="regimeId">Régimen *</label>
+                                    <p-dropdown inputId="regimeId" [options]="regimeOptions" [(ngModel)]="invoice.regimeId" [disabled]="readonly" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                                    <small class="p-error" *ngIf="isInvalid('regimeId')">Obligatorio.</small>
+                                </div>
+                            </ng-container>
                         </div>
                     </div>
                     <div class="col-12 md:col-4">
                         <div class="flex flex-column gap-3 mt-4">
                             <div class="flex align-items-center">
-                                <p-checkbox inputId="isExternalSale" [(ngModel)]="invoice.isExternalSale" [binary]="true" [disabled]="readonly"></p-checkbox>
+                                <p-checkbox inputId="isExternalSale" [(ngModel)]="invoice.isExternalSale" [binary]="true" [disabled]="readonly || isExport"></p-checkbox>
                                 <label for="isExternalSale" class="ml-2 mb-0">Venta Externa</label>
                             </div>
                         </div>
@@ -138,7 +156,7 @@
                     </div>
                     <div class="col-12 md:col-4">
                         <div class="flex align-items-center mb-3">
-                            <p-checkbox inputId="exempt" [(ngModel)]="lineForm.exempt" [binary]="true" [disabled]="readonly"></p-checkbox>
+                            <p-checkbox inputId="exempt" [(ngModel)]="lineForm.exempt" [binary]="true" [disabled]="readonly || isExport"></p-checkbox>
                             <label for="exempt" class="ml-2 mb-0">Exento</label>
                         </div>
                         <div class="field">

@@ -14,6 +14,7 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         prefix: { type: String, required: true, trim: true },
         lastNumber: { type: Number, default: 0, min: 0, max: MAX_NUMBER },
         active: { type: Boolean, default: true },
+        deletionLock: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now },
         updatedAt: Date
     });
@@ -40,7 +41,7 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         let seq;
         try {
             seq = await Sequence.findOneAndUpdate(
-                { _id: keyOf(type._id, year), active: { $ne: false } },
+                { _id: keyOf(type._id, year), active: { $ne: false }, deletionLock: { $ne: true } },
                 {
                     $inc: { lastNumber: 1 },
                     $setOnInsert: { documentTypeId: type._id, year, prefix: type.documentCode, active: true, createdAt: now },
@@ -52,6 +53,7 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
             if (error.code === 11000) {
                 const existing = await Sequence.findById(keyOf(type._id, year));
                 if (existing && existing.active === false) throw new HttpError(409, `El correlativo de ${type.description} del año ${year} está inactivo`);
+                if (existing?.deletionLock) throw new HttpError(409, 'El correlativo está siendo actualizado por una eliminación. Intente nuevamente');
                 throw new HttpError(409, `El prefijo ${type.documentCode} ya está en uso en otro correlativo del año ${year}`);
             }
             throw error;
@@ -79,6 +81,54 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         active: doc.active,
         issued: await Invoice.countDocuments({ documentNumber: numberPattern(doc.prefix, doc.year) })
     });
+
+    const numberOfInvoice = (invoice, sequence) => {
+        const match = String(invoice.documentNumber || '').match(numberPattern(sequence.prefix, sequence.year));
+        return match ? Number(match[0].slice(-NUMBER_DIGITS)) : null;
+    };
+
+    const canDeleteInvoice = async (invoice) => {
+        if (!invoice.documentTypeId || !invoice.documentDate) return false;
+        const year = invoice.documentDate.getUTCFullYear();
+        const sequence = await Sequence.findById(keyOf(invoice.documentTypeId, year));
+        if (!sequence || sequence.deletionLock) return false;
+        const number = numberOfInvoice(invoice, sequence);
+        if (number === null || number !== sequence.lastNumber) return false;
+        return (await highestUsed(sequence.prefix, sequence.year)) === number;
+    };
+
+    const deleteIfLast = async (invoice) => {
+        if (!invoice.documentTypeId || !invoice.documentDate) throw new HttpError(409, 'No se pudo determinar el correlativo de la factura');
+        const year = invoice.documentDate.getUTCFullYear();
+        const id = keyOf(invoice.documentTypeId, year);
+        const sequence = await Sequence.findById(id);
+        if (!sequence) throw new HttpError(409, 'No se puede eliminar: no existe el correlativo asociado');
+        const number = numberOfInvoice(invoice, sequence);
+        if (number === null) throw new HttpError(409, 'El número de factura no corresponde al correlativo configurado');
+
+        const locked = await Sequence.findOneAndUpdate(
+            { _id: id, lastNumber: number, deletionLock: { $ne: true } },
+            { $set: { deletionLock: true, updatedAt: new Date() } },
+            { new: true }
+        );
+        if (!locked) throw new HttpError(409, 'Solo se puede eliminar la factura con el último correlativo generado');
+
+        try {
+            if ((await highestUsed(sequence.prefix, sequence.year)) !== number) {
+                throw new HttpError(409, 'Solo se puede eliminar la factura con el último correlativo generado');
+            }
+            const deleted = await Invoice.findOneAndDelete({ _id: invoice._id, documentNumber: invoice.documentNumber });
+            if (!deleted) throw new HttpError(404, 'Factura no encontrada');
+            await Sequence.updateOne(
+                { _id: id, deletionLock: true },
+                { $set: { lastNumber: number - 1, deletionLock: false, updatedAt: new Date() } }
+            );
+            return deleted;
+        } catch (error) {
+            await Sequence.updateOne({ _id: id, deletionLock: true }, { $set: { deletionLock: false, updatedAt: new Date() } });
+            throw error;
+        }
+    };
 
     const fail = (res, error, fallback) => {
         if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
@@ -130,6 +180,7 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         try {
             const current = await Sequence.findById(req.params.id);
             if (!current) return res.status(404).json({ error: 'Correlativo no encontrado' });
+            if (current.deletionLock) throw new HttpError(409, 'El correlativo está siendo actualizado por una eliminación. Intente nuevamente');
             const update = { updatedAt: new Date() };
             if (req.body.lastNumber !== undefined) {
                 update.lastNumber = parseLastNumber(req.body.lastNumber);
@@ -148,6 +199,7 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         try {
             const current = await Sequence.findById(req.params.id);
             if (!current) return res.status(404).json({ error: 'Correlativo no encontrado' });
+            if (current.deletionLock) throw new HttpError(409, 'El correlativo está siendo actualizado por una eliminación. Intente nuevamente');
             if (await Invoice.exists({ documentNumber: numberPattern(current.prefix, current.year) })) {
                 throw new HttpError(409, 'No se puede eliminar: ya hay facturas con este correlativo. Desactívelo en su lugar');
             }
@@ -164,5 +216,5 @@ module.exports = function registerInvoiceSequences(app, mongoose, Invoice, HttpE
         await Sequence.init();
     };
 
-    return { nextNumber, init };
+    return { nextNumber, init, canDeleteInvoice, deleteIfLast };
 };

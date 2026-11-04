@@ -50,14 +50,19 @@
                             </div>
                             <div>
                                 <p class="m-0 font-semibold text-900 text-sm">{{ row.label }}</p>
-                                <p class="m-0 text-400 text-xs">{{ countEnabled(row) }}/{{ menuOptions.length }} accesos</p>
+                                <p class="m-0 text-400 text-xs">{{ countEnabled(row) }}/{{ totalOptions(row) }} accesos</p>
                             </div>
                         </div>
                     </td>
 
                     <!-- Checkboxes por opción -->
                     <td *ngFor="let opt of menuOptions" class="p-3 text-center">
-                        <ng-container *ngIf="row.editing">
+                        <ng-container *ngIf="isRestricted(row, opt)">
+                            <span class="flex align-items-center justify-content-center" pTooltip="Exclusivo del Administrador">
+                                <i class="pi pi-lock text-xl text-300"></i>
+                            </span>
+                        </ng-container>
+                        <ng-container *ngIf="!isRestricted(row, opt) && row.editing">
                             <p-checkbox
                                 [(ngModel)]="row.permissions[opt.key]"
                                 [binary]="true"
@@ -65,7 +70,7 @@
                                 styleClass="justify-content-center">
                             </p-checkbox>
                         </ng-container>
-                        <ng-container *ngIf="!row.editing">
+                        <ng-container *ngIf="!isRestricted(row, opt) && !row.editing">
                             <span *ngIf="row.permissions[opt.key]"
                                   class="flex align-items-center justify-content-center">
                                 <i class="pi pi-check-circle text-xl" style="color:#10b981"></i>
@@ -79,7 +84,10 @@
 
                     <!-- Acciones -->
                     <td class="p-3 text-center">
-                        <ng-container *ngIf="!row.editing">
+                        <span *ngIf="row.rol === 'ADMIN'" class="text-400 text-xs">
+                            <i class="pi pi-lock mr-1"></i>Protegido
+                        </span>
+                        <ng-container *ngIf="row.rol !== 'ADMIN' && !row.editing">
                             <button pButton pRipple
                                 icon="pi pi-pencil"
                                 class="p-button-rounded p-button-text p-button-sm"
@@ -131,7 +139,11 @@
         </div>
         <div class="flex align-items-center gap-2">
             <i class="pi pi-info-circle text-primary"></i>
-            <span class="text-sm text-700">El rol Administrador tiene acceso total siempre</span>
+            <span class="text-sm text-700">El rol Administrador tiene acceso total siempre y no se puede modificar</span>
+        </div>
+        <div class="flex align-items-center gap-2">
+            <i class="pi pi-lock text-300"></i>
+            <span class="text-sm text-700">Opción exclusiva del Administrador (catálogos globales y documentos)</span>
         </div>
     </div>
 

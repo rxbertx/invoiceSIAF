@@ -61,6 +61,23 @@
    "active": true
   }
  ],
+ "departamentos": [
+  { "code": "06", "description": "SAN SALVADOR", "departmentNumber": 1, "active": true },
+  { "code": "05", "description": "LA LIBERTAD", "departmentNumber": 2, "active": true },
+  { "code": "02", "description": "SANTA ANA", "departmentNumber": 3, "active": true },
+  { "code": "03", "description": "SONSONATE", "departmentNumber": 4, "active": true },
+  { "code": "01", "description": "AHUACHAPAN", "departmentNumber": 5, "active": true },
+  { "code": "04", "description": "CHALATENANGO", "departmentNumber": 6, "active": true },
+  { "code": "07", "description": "CUSCATLAN", "departmentNumber": 9, "active": true },
+  { "code": "08", "description": "LA PAZ", "departmentNumber": 10, "active": true },
+  { "code": "09", "description": "CABAÑAS", "departmentNumber": 11, "active": true },
+  { "code": "10", "description": "SAN VICENTE", "departmentNumber": 12, "active": true },
+  { "code": "11", "description": "USULUTAN", "departmentNumber": 13, "active": true },
+  { "code": "12", "description": "SAN MIGUEL", "departmentNumber": 14, "active": true },
+  { "code": "13", "description": "MORAZAN", "departmentNumber": 15, "active": true },
+  { "code": "14", "description": "LA UNION", "departmentNumber": 16, "active": true },
+  { "code": "00", "description": "Otro (Para extranjeros)", "departmentNumber": 17, "active": true }
+ ],
  "municipios": [
   {
    "code": "0",

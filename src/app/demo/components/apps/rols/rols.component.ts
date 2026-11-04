@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MessageService } from 'primeng/api';
-import { GLOBAL_CATALOGS } from 'src/app/demo/service/global-catalog.service';
+import { GLOBAL_CATALOGS, isAdminOnlyKey } from 'src/app/demo/service/global-catalog.service';
 
 interface MenuOption {
     key: string;
@@ -31,7 +31,7 @@ export class RolsComponent implements OnInit {
         { key: 'clientes',           label: 'Clientes',                icon: 'pi pi-id-card' },
         { key: 'facturacion',        label: 'Facturación',             icon: 'pi pi-file-edit' },
         { key: 'admin-roles',        label: 'Administrador de Roles',  icon: 'pi pi-shield' },
-        { key: 'admin-correlativos', label: 'Administrador de Correlativos', icon: 'pi pi-sort-numeric-up' },
+        { key: 'admin-correlativos', label: 'Correlativos Factura', icon: 'pi pi-sort-numeric-up' },
         { key: 'admin-documentos',   label: 'Catálogo FE: Documentos', icon: 'pi pi-file' },
         { key: 'config-correo',      label: 'Configuración Correo',    icon: 'pi pi-envelope' },
         { key: 'configuraciones',    label: 'Configuraciones',         icon: 'pi pi-cog' },
@@ -66,7 +66,7 @@ export class RolsComponent implements OnInit {
     private initDefaults() {
         for (const row of this.roles) {
             for (const opt of this.menuOptions) {
-                // Admin tiene todo por defecto
+                // Admin tiene todo por defecto; las opciones globales solo existen para él
                 row.permissions[opt.key] = row.rol === 'ADMIN';
             }
         }
@@ -79,7 +79,10 @@ export class RolsComponent implements OnInit {
                 if (data && data.length) {
                     for (const saved of data) {
                         const row = this.roles.find(r => r.rol === saved.rol);
-                        if (row) row.permissions = { ...row.permissions, ...saved.permissions };
+                        if (row && row.rol !== 'ADMIN') {
+                            row.permissions = { ...row.permissions, ...saved.permissions };
+                            this.clearRestricted(row);
+                        }
                     }
                 }
                 this.loading = false;
@@ -88,11 +91,29 @@ export class RolsComponent implements OnInit {
         });
     }
 
+    // Las opciones globales son exclusivas del Administrador
+    isRestricted(row: RolRow, opt: MenuOption): boolean {
+        return row.rol !== 'ADMIN' && isAdminOnlyKey(opt.key);
+    }
+
+    private clearRestricted(row: RolRow) {
+        for (const opt of this.menuOptions) {
+            if (this.isRestricted(row, opt)) row.permissions[opt.key] = false;
+        }
+    }
+
+    private editableOptions(row: RolRow): MenuOption[] {
+        return this.menuOptions.filter(o => !this.isRestricted(row, o));
+    }
+
     toggleEdit(row: RolRow) {
+        if (row.rol === 'ADMIN') return;
         row.editing = !row.editing;
     }
 
     saveRow(row: RolRow) {
+        if (row.rol === 'ADMIN') return;
+        this.clearRestricted(row);
         this.saving = true;
         this.http.put('/api/rol-permissions', { rol: row.rol, permissions: row.permissions }).subscribe({
             next: () => {
@@ -117,16 +138,20 @@ export class RolsComponent implements OnInit {
     }
 
     allEnabled(row: RolRow): boolean {
-        return this.menuOptions.every(o => row.permissions[o.key]);
+        return this.editableOptions(row).every(o => row.permissions[o.key]);
     }
 
     toggleAll(row: RolRow, value: boolean) {
-        for (const opt of this.menuOptions) {
+        for (const opt of this.editableOptions(row)) {
             row.permissions[opt.key] = value;
         }
     }
 
     countEnabled(row: RolRow): number {
-        return this.menuOptions.filter(o => row.permissions[o.key]).length;
+        return this.editableOptions(row).filter(o => row.permissions[o.key]).length;
+    }
+
+    totalOptions(row: RolRow): number {
+        return this.editableOptions(row).length;
     }
 }

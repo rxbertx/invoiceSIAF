@@ -80,8 +80,9 @@
                     <small class="p-error" *ngIf="f.required && isInvalid(f.key)">Este campo es obligatorio.</small>
                 </ng-container>
                 <ng-container *ngSwitchCase="'country'">
-                    <label [for]="f.key">{{ f.label }}</label>
+                    <label [for]="f.key">{{ f.label }}{{ f.required ? ' *' : '' }}</label>
                     <p-dropdown [inputId]="f.key" [options]="countryOptions" [(ngModel)]="item[f.key]" [showClear]="true" [filter]="true" filterBy="label" placeholder="Sin país (extranjeros)" appendTo="body"></p-dropdown>
+                    <small class="p-error" *ngIf="f.required && isInvalid(f.key)">Este campo es obligatorio.</small>
                 </ng-container>
                 <div class="field-checkbox mb-0" *ngSwitchCase="'boolean'">
                     <p-checkbox [inputId]="f.key" [(ngModel)]="item[f.key]" [binary]="true"></p-checkbox>

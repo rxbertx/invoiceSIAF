@@ -30,6 +30,15 @@ export const GLOBAL_CATALOGS: CatalogConfig[] = [
         ]
     },
     {
+        key: 'departamentos',
+        label: 'Departamentos',
+        icon: 'pi pi-fw pi-map',
+        fields: [
+            { key: 'departmentNumber', label: 'Código departamento', type: 'number', required: true },
+            { key: 'countryId', label: 'País', type: 'country', required: true }
+        ]
+    },
+    {
         key: 'municipios',
         label: 'Municipios',
         icon: 'pi pi-fw pi-map-marker',
@@ -42,6 +51,9 @@ export const GLOBAL_CATALOGS: CatalogConfig[] = [
     { key: 'unidades-medida', label: 'Unidades de medida', icon: 'pi pi-fw pi-sliders-h' },
     { key: 'actividades-economicas', label: 'Actividades económicas', icon: 'pi pi-fw pi-briefcase' }
 ];
+
+// Opciones de menú exclusivas del rol ADMIN (catálogos globales y tipos de documento)
+export const isAdminOnlyKey = (key: string): boolean => key === 'admin-documentos' || key.startsWith('cat-');
 
 @Injectable({
     providedIn: 'root'

@@ -6,6 +6,8 @@ const IVA_RATE = 0.13;
 const RETENTION_RATE = 0.01;
 const RETENTION_MIN_BASE = 100;
 const CREDITO_FISCAL_DTE = '03';
+const EXPORT_DTE = '11';
+const SERVICE_ITEM_CODE = '2';
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -61,6 +63,12 @@ module.exports = function registerInvoices(app, mongoose) {
         clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
         billToName: { type: String, required: true, trim: true },
         customsDeclarationNumber: { type: String, default: '', trim: true },
+        itemTypeId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        itemTypeName: { type: String, default: '' },
+        customsId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        customsName: { type: String, default: '' },
+        regimeId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        regimeName: { type: String, default: '' },
         isExternalSale: { type: Boolean, default: false },
         accountingDescription: { type: String, default: '' },
         status: { type: String, enum: ['BORRADOR', 'ANULADA'], default: 'BORRADOR' },
@@ -89,7 +97,7 @@ module.exports = function registerInvoices(app, mongoose) {
     }
 
     const sequences = registerInvoiceSequences(app, mongoose, Invoice, HttpError);
-    const { nextNumber } = sequences;
+    const { nextNumber, canDeleteInvoice, deleteIfLast } = sequences;
 
     // Tipo de documento según el Administrador de Documentos; una factura existente puede conservar un tipo que luego se inactive
     const resolveDocumentType = async (body, current) => {
@@ -107,6 +115,46 @@ module.exports = function registerInvoices(app, mongoose) {
         return type;
     };
 
+    // Datos de exportación (solo para tipo DTE 11): No. de declaración y catálogos de tipo de item, aduana y régimen
+    const EXPORT_CATALOGS = [
+        ['itemType', 'tipo_item', 'tipo de item'],
+        ['customs', 'recinto_fiscal', 'aduana'],
+        ['regime', 'regimen', 'régimen']
+    ];
+
+    const resolveExportData = async (body, docType, current) => {
+        if (docType.dteType !== EXPORT_DTE) {
+            const empty = { customsDeclarationNumber: '' };
+            for (const [prefix] of EXPORT_CATALOGS) Object.assign(empty, { [`${prefix}Id`]: null, [`${prefix}Name`]: '' });
+            return empty;
+        }
+        const data = { customsDeclarationNumber: String(body.customsDeclarationNumber || '').trim() };
+        const db = mongoose.connection.useDb(GLOBAL_CATALOGS_DB, { useCache: true });
+        let isServiceItem = false;
+        if (mongoose.isValidObjectId(body.itemTypeId)) {
+            const itemType = await db.collection('tipo_item').findOne({ _id: new mongoose.Types.ObjectId(body.itemTypeId) });
+            isServiceItem = String(itemType?.code) === SERVICE_ITEM_CODE;
+        }
+        for (const [prefix, collection, label] of EXPORT_CATALOGS) {
+            // Con tipo de item "Servicios" no aplican aduana ni régimen
+            if (prefix !== 'itemType' && isServiceItem) {
+                data[`${prefix}Id`] = null;
+                data[`${prefix}Name`] = '';
+                continue;
+            }
+            const id = body[`${prefix}Id`];
+            if (!id) throw new HttpError(400, `Seleccione ${label} para la factura de exportación`);
+            if (!mongoose.isValidObjectId(id)) throw new HttpError(400, `Valor inválido para ${label}`);
+            const item = await db.collection(collection).findOne({ _id: new mongoose.Types.ObjectId(id) });
+            if (!item) throw new HttpError(400, `El ${label} seleccionado no existe en el catálogo`);
+            const unchanged = current && String(current[`${prefix}Id`]) === String(id);
+            if (item.active === false && !unchanged) throw new HttpError(400, `El ${label} seleccionado está inactivo`);
+            data[`${prefix}Id`] = item._id;
+            data[`${prefix}Name`] = item.description;
+        }
+        return data;
+    };
+
     // Arma los datos permitidos y recalcula siempre los importes en el servidor
     const buildData = async (body, current) => {
         const docType = await resolveDocumentType(body, current);
@@ -121,14 +169,15 @@ module.exports = function registerInvoices(app, mongoose) {
             dteType: docType.dteType,
             clientId: client._id,
             billToName: body.billToName,
-            customsDeclarationNumber: body.customsDeclarationNumber || '',
-            isExternalSale: !!body.isExternalSale,
+            ...(await resolveExportData(body, docType, current)),
+            isExternalSale: docType.dteType === EXPORT_DTE || !!body.isExternalSale,
             accountingDescription: body.accountingDescription || ''
         };
 
         const retentionAgent = client.isLargeTaxpayer && docType.dteType === CREDITO_FISCAL_DTE;
 
-        const rawLines = Array.isArray(body.lines) ? body.lines : [];
+        // La exportación es siempre exenta
+        const rawLines = (Array.isArray(body.lines) ? body.lines : []).map((l) => (docType.dteType === EXPORT_DTE ? { ...l, exempt: true } : l));
         const calculated = calcInvoice(rawLines, retentionAgent);
         data.lines = calculated.lines;
         data.totals = calculated.totals;
@@ -148,7 +197,11 @@ module.exports = function registerInvoices(app, mongoose) {
     app.get('/api/invoices', async (req, res) => {
         try {
             const invoices = await Invoice.find().select('-lines').sort({ documentDate: -1, documentNumber: -1 });
-            res.json(invoices.map(toDto));
+            const rows = await Promise.all(invoices.map(async (invoice) => ({
+                ...toDto(invoice),
+                canDelete: await canDeleteInvoice(invoice)
+            })));
+            res.json(rows);
         } catch (error) {
             handleError(res, error, 'Error al obtener las facturas');
         }
@@ -195,24 +248,29 @@ module.exports = function registerInvoices(app, mongoose) {
 
     app.post('/api/invoices/:id/annul', async (req, res) => {
         try {
-            const invoice = await Invoice.findByIdAndUpdate(req.params.id, { status: 'ANULADA', updatedAt: new Date() }, { new: true });
-            if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
+            const invoice = await Invoice.findOneAndUpdate(
+                { _id: req.params.id, status: 'BORRADOR' },
+                { status: 'ANULADA', updatedAt: new Date() },
+                { new: true }
+            );
+            if (!invoice) {
+                const exists = await Invoice.exists({ _id: req.params.id });
+                return exists
+                    ? res.status(409).json({ error: 'La factura ya está anulada' })
+                    : res.status(404).json({ error: 'Factura no encontrada' });
+            }
             res.json(toDto(invoice));
         } catch (error) {
             handleError(res, error, 'Error al anular la factura');
         }
     });
 
-    // Solo los borradores se eliminan; el resto se anula para conservar el correlativo
+    // Una factura solo se elimina si es la última de su correlativo; las anteriores se conservan anulándolas.
     app.delete('/api/invoices/:id', async (req, res) => {
         try {
-            const deleted = await Invoice.findOneAndDelete({ _id: req.params.id, status: 'BORRADOR' });
-            if (!deleted) {
-                const exists = await Invoice.exists({ _id: req.params.id });
-                return exists
-                    ? res.status(409).json({ error: 'Solo se pueden eliminar facturas en borrador' })
-                    : res.status(404).json({ error: 'Factura no encontrada' });
-            }
+            const invoice = await Invoice.findById(req.params.id);
+            if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
+            await deleteIfLast(invoice);
             res.json({ success: true, message: 'Factura eliminada correctamente' });
         } catch (error) {
             handleError(res, error, 'Error al eliminar la factura');

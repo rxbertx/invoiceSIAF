@@ -18,7 +18,7 @@ import { RouterModule } from '@angular/router';
             { path: 'general-parameters', data: { breadcrumb: 'Parámetros Generales' }, loadChildren: () => import('./general-parameters/general-parameters.module').then((m) => m.GeneralParametersModule) },
             { path: 'invoicing', data: { breadcrumb: 'Facturación' }, loadChildren: () => import('./invoicing/invoicing.module').then((m) => m.InvoicingModule) },
             { path: 'document-types', data: { breadcrumb: 'Administrador de Documentos' }, loadChildren: () => import('./document-types/document-types.module').then((m) => m.DocumentTypesModule) },
-            { path: 'invoice-sequences', data: { breadcrumb: 'Correlativos de Facturas' }, loadChildren: () => import('./invoice-sequences/invoice-sequences.module').then((m) => m.InvoiceSequencesModule) },
+            { path: 'invoice-sequences', data: { breadcrumb: 'Correlativos Factura' }, loadChildren: () => import('./invoice-sequences/invoice-sequences.module').then((m) => m.InvoiceSequencesModule) },
             { path: 'rols', data: { breadcrumb: 'Roles' }, loadChildren: () => import('./rols/rols.module').then((m) => m.RolsModule) },
             { path: 'smtp-config', data: { breadcrumb: 'Configuración Correo' }, loadChildren: () => import('./smtp-config/smtp-config.module').then((m) => m.SmtpConfigModule) },
             { path: '**', redirectTo: '/notfound' }

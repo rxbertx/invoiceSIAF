@@ -373,11 +373,24 @@ app.post('/api/smtp-config/run-due-check', async (req, res) => {
     res.json({ success: true });
 });
 
+// Opciones exclusivas del rol ADMIN: catálogos globales de facturación electrónica y tipos de documento
+const isAdminOnlyKey = (key) => key === 'admin-documentos' || String(key).startsWith('cat-');
+const withoutAdminOnlyKeys = (permissions) => {
+    const clean = { ...(permissions || {}) };
+    for (const key of Object.keys(clean)) {
+        if (isAdminOnlyKey(key)) clean[key] = false;
+    }
+    return clean;
+};
+
 /////////////////////////////////// CRUD para Rol Permissions ///////////////////////////////////////////////
 app.get('/api/rol-permissions', async (req, res) => {
     try {
         const perms = await RolPermission.find();
-        res.json(perms);
+        res.json(perms.map((p) => {
+            const data = p.toObject();
+            return p.rol === 'ADMIN' ? data : { ...data, permissions: withoutAdminOnlyKeys(data.permissions) };
+        }));
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener permisos' });
     }
@@ -386,9 +399,16 @@ app.get('/api/rol-permissions', async (req, res) => {
 app.put('/api/rol-permissions', async (req, res) => {
     try {
         const { rol, permissions } = req.body;
+        if (!rol || typeof permissions !== 'object' || permissions === null) {
+            return res.status(400).json({ error: 'Datos de permisos inválidos' });
+        }
+        // El administrador siempre tiene acceso total y sus permisos no se pueden modificar
+        if (rol === 'ADMIN') {
+            return res.status(403).json({ error: 'Los permisos del rol Administrador no se pueden modificar' });
+        }
         const updated = await RolPermission.findOneAndUpdate(
             { rol },
-            { $set: { permissions, updatedAt: new Date() } },
+            { $set: { permissions: withoutAdminOnlyKeys(permissions), updatedAt: new Date() } },
             { upsert: true, new: true }
         );
         res.json({ success: true, data: updated });

@@ -22,16 +22,13 @@ export class ClientsComponent implements OnInit {
     submitted = false;
     saving = false;
     loading = false;
+    private businessNameLinkedToName = false;
 
     personTypes = ['Natural', 'Jurídica'];
     documentTypes = ['NIT', 'DUI', 'Pasaporte', 'Otros'];
-    departments: string[] = [
-        'AHUACHAPAN', 'SANTA ANA', 'SONSONATE', 'CHALATENANGO', 'LA LIBERTAD', 'SAN SALVADOR', 'CUSCATLAN',
-        'LA PAZ', 'CABAÑAS', 'SAN VICENTE', 'USULUTAN', 'SAN MIGUEL', 'MORAZAN', 'LA UNION', 'OTRO'
-    ];
-
     // Listas alimentadas por los catálogos configurados
     countries: any[] = [];
+    departments: any[] = [];
     municipalities: any[] = [];
     establishmentTypes: Option[] = [];
     economicActivities: Option[] = [];
@@ -51,11 +48,24 @@ export class ClientsComponent implements OnInit {
     ngOnInit() {
         this.loadClients();
         this.catalogs.getItems('paises').subscribe({
-            next: (rows) => (this.countries = rows.filter((r) => r.active)),
+            next: (rows) => {
+                this.countries = rows.filter((r) => r.active);
+                this.applyForeignLocationDefaults();
+            },
             error: () => this.showError('No se pudo cargar el catálogo de países')
         });
+        this.catalogs.getItems('departamentos').subscribe({
+            next: (rows) => {
+                this.departments = rows.filter((r) => r.active);
+                this.applyForeignLocationDefaults();
+            },
+            error: () => this.showError('No se pudo cargar el catálogo de departamentos')
+        });
         this.catalogs.getItems('municipios').subscribe({
-            next: (rows) => (this.municipalities = rows.filter((r) => r.active)),
+            next: (rows) => {
+                this.municipalities = rows.filter((r) => r.active);
+                this.applyForeignLocationDefaults();
+            },
             error: () => this.showError('No se pudo cargar el catálogo de municipios')
         });
         this.catalogs.getItems('tipo-establecimiento').subscribe({
@@ -68,15 +78,28 @@ export class ClientsComponent implements OnInit {
         });
     }
 
-    // La razón social sigue al nombre mientras no se haya escrito una distinta
+    // La razón social se sincroniza hasta que el usuario la edita manualmente.
     onNameChange(name: string) {
-        const previousName = this.client.name;
-        const businessName = this.client.businessName;
-        if (!businessName || businessName === previousName) this.client.businessName = name;
+        if (this.businessNameLinkedToName) this.client.businessName = name;
+    }
+
+    onBusinessNameChange() {
+        this.businessNameLinkedToName = false;
     }
 
     onTaxpayerChange() {
+        if (this.client.isForeign) {
+            this.client.isTaxpayer = false;
+        }
         if (!this.client.isTaxpayer) this.client.ivaRegistration = '';
+    }
+
+    onForeignChange() {
+        if (!this.client.isForeign) return;
+        this.client.paysIva = false;
+        this.client.isLargeTaxpayer = false;
+        this.client.isTaxpayer = false;
+        this.client.ivaRegistration = '';
     }
 
     get countryOptions(): Option[] {
@@ -84,17 +107,41 @@ export class ClientsComponent implements OnInit {
     }
 
     get departmentOptions(): Option[] {
-        return this.departments.map((d) => ({ label: d, value: d }));
+        const options = this.isForeignCountry
+            ? [{ label: this.foreignDepartment?.description ?? 'Otro (Para extranjeros)', value: this.foreignDepartment?.description ?? 'Otro (Para extranjeros)' }]
+            : this.departments
+                  .filter((d) => d.countryId === this.homeCountry?.id && !/^otro \(para\s+extranjeros\)$/i.test(d.description))
+                  .map((d) => ({ label: `${d.code} - ${d.description}`, value: d.description }));
+        return this.withCurrent(options, 'department');
     }
 
-    // Municipios del país elegido y del departamento; "Otro (Para extranjeros)" no tiene país y siempre está disponible
     get municipalityOptions(): Option[] {
         const country = this.countries.find((c) => c.description === this.client.country);
+        if (this.isForeignCountry) {
+            const foreignMunicipality = this.foreignMunicipality;
+            return foreignMunicipality ? [{ label: foreignMunicipality.description, value: foreignMunicipality.id }] : [];
+        }
         const dept = normalize(this.client.department);
         return this.municipalities
-            .filter((m) => !m.countryId || (country && m.countryId === country.id))
-            .filter((m) => !m.countryId || !dept || dept === 'OTRO' || normalize(m.description).startsWith(dept))
-            .map((m) => ({ label: m.countryId ? `${m.code} - ${m.description}` : m.description, value: m.id }));
+            .filter((m) => country && m.countryId === country.id)
+            .filter((m) => !dept || normalize(m.description).startsWith(dept))
+            .map((m) => ({ label: `${m.code} - ${m.description}`, value: m.id }));
+    }
+
+    get homeCountry(): any {
+        return this.countries.find((c) => normalize(c.description) === 'EL SALVADOR');
+    }
+
+    get isForeignCountry(): boolean {
+        return !!this.client.country && normalize(this.client.country) !== 'EL SALVADOR';
+    }
+
+    private get foreignDepartment(): any {
+        return this.departments.find((d) => /^otro \(para\s+extranjeros\)$/i.test(d.description));
+    }
+
+    private get foreignMunicipality(): any {
+        return this.municipalities.find((m) => /^otro \(para\s+extranjeros\)$/i.test(m.description));
     }
 
     get establishmentTypeOptions(): Option[] {
@@ -112,10 +159,44 @@ export class ClientsComponent implements OnInit {
     }
 
     onCountryOrDepartmentChange() {
+        if (this.isForeignCountry) {
+            this.applyForeignLocationDefaults();
+            return;
+        }
         if (this.client.municipalityId && !this.municipalityOptions.some((o) => o.value === this.client.municipalityId)) {
             this.client.municipalityId = null;
             this.client.municipality = '';
         }
+    }
+
+    onCountryChange() {
+        if (this.isForeignCountry) {
+            this.client.isForeign = true;
+            this.onForeignChange();
+            this.applyForeignLocationDefaults();
+            this.applyForeignCatalogDefaults();
+        } else {
+            this.client.isForeign = false;
+            if (/^otro \(para\s+extranjeros\)$/i.test(this.client.department || '')) this.client.department = '';
+            this.client.municipalityId = null;
+            this.client.municipality = '';
+        }
+        this.onCountryOrDepartmentChange();
+    }
+
+    private applyForeignLocationDefaults() {
+        if (!this.isForeignCountry) return;
+        this.client.department = this.foreignDepartment?.description ?? 'Otro (Para extranjeros)';
+        const municipality = this.foreignMunicipality;
+        this.client.municipalityId = municipality?.id ?? null;
+        this.client.municipality = municipality?.description ?? 'Otro (Para extranjeros)';
+    }
+
+    private applyForeignCatalogDefaults(onlyEmpty = false) {
+        if (!this.isForeignCountry) return;
+        if (!onlyEmpty || !this.client.documentType) this.client.documentType = 'Otros';
+        if (!onlyEmpty || !this.client.establishmentType) this.client.establishmentType = 'Casa matriz';
+        if (!onlyEmpty || !this.client.economicActivity) this.client.economicActivity = '10005';
     }
 
     onMunicipalityChange() {
@@ -127,11 +208,16 @@ export class ClientsComponent implements OnInit {
     private alignLegacyValues(client: any) {
         const match = (options: string[], value: string) => options.find((o) => normalize(o) === normalize(value));
         client.country = match(this.countries.map((c) => c.description), client.country) ?? client.country;
-        client.department = match(this.departments, client.department) ?? client.department;
+        client.department = match(this.departments.map((d) => d.description), client.department) ?? client.department;
         client.establishmentType = match(this.establishmentTypes.map((o) => o.value), client.establishmentType) ?? client.establishmentType;
         if (!client.municipalityId && client.municipality) {
             const candidates = this.municipalities.filter((m) => normalize(m.description) === normalize(client.municipality));
             if (candidates.length === 1) client.municipalityId = candidates[0].id;
+        }
+        if (this.isForeignCountry || client.isForeign) {
+            client.isForeign = true;
+            this.onForeignChange();
+            if (this.isForeignCountry) this.applyForeignLocationDefaults();
         }
     }
 
@@ -150,7 +236,10 @@ export class ClientsComponent implements OnInit {
     }
 
     openNew() {
+        this.businessNameLinkedToName = true;
         this.client = {
+            name: '',
+            businessName: '',
             municipality: '',
             municipalityId: null,
             isActive: true,
@@ -166,7 +255,9 @@ export class ClientsComponent implements OnInit {
 
     editClient(client: any) {
         this.client = { ...client };
+        this.businessNameLinkedToName = !this.client.businessName || this.client.businessName === this.client.name;
         this.alignLegacyValues(this.client);
+        this.applyForeignCatalogDefaults(true);
         this.submitted = false;
         this.clientDialog = true;
     }
@@ -178,7 +269,12 @@ export class ClientsComponent implements OnInit {
 
     saveClient() {
         this.submitted = true;
-        if (this.requiredFields.some((f) => this.isInvalid(f)) || (this.client.isTaxpayer && this.isInvalid('ivaRegistration'))) {
+        if (this.isForeignCountry) this.applyForeignLocationDefaults();
+        if (
+            this.requiredFields.some((f) => this.isInvalid(f)) ||
+            (this.isForeignCountry && this.isInvalid('municipalityId')) ||
+            (this.client.isTaxpayer && this.isInvalid('ivaRegistration'))
+        ) {
             return;
         }
 

@@ -73,7 +73,7 @@
                     </div>
                     <div class="field">
                         <label for="businessName">Razón Social *</label>
-                        <input pInputText id="businessName" [(ngModel)]="client.businessName" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('businessName') }" />
+                        <input pInputText id="businessName" [(ngModel)]="client.businessName" (ngModelChange)="onBusinessNameChange()" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('businessName') }" />
                         <small class="p-error" *ngIf="isInvalid('businessName')">Obligatorio.</small>
                     </div>
                     <div class="field">
@@ -87,17 +87,18 @@
                     </div>
                     <div class="field">
                         <label for="country">País *</label>
-                        <p-dropdown inputId="country" [options]="countryOptions" [(ngModel)]="client.country" (onChange)="onCountryOrDepartmentChange()" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('country') }"></p-dropdown>
+                        <p-dropdown inputId="country" [options]="countryOptions" [(ngModel)]="client.country" (onChange)="onCountryChange()" [filter]="true" filterBy="label" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('country') }"></p-dropdown>
                         <small class="p-error" *ngIf="isInvalid('country')">Obligatorio.</small>
                     </div>
                     <div class="field">
                         <label for="department">Departamento *</label>
-                        <p-dropdown inputId="department" [options]="departmentOptions" [(ngModel)]="client.department" (onChange)="onCountryOrDepartmentChange()" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('department') }"></p-dropdown>
+                        <p-dropdown inputId="department" [options]="departmentOptions" [(ngModel)]="client.department" (onChange)="onCountryOrDepartmentChange()" [disabled]="isForeignCountry" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('department') }"></p-dropdown>
                         <small class="p-error" *ngIf="isInvalid('department')">Obligatorio.</small>
                     </div>
                     <div class="field">
                         <label for="municipality">Municipio</label>
-                        <p-dropdown inputId="municipality" [options]="municipalityOptions" [(ngModel)]="client.municipalityId" (onChange)="onMunicipalityChange()" [filter]="true" filterBy="label" [showClear]="true" placeholder="Seleccionar" appendTo="body"></p-dropdown>
+                        <p-dropdown inputId="municipality" [options]="municipalityOptions" [(ngModel)]="client.municipalityId" (onChange)="onMunicipalityChange()" [disabled]="isForeignCountry" [filter]="true" filterBy="label" [showClear]="!isForeignCountry" placeholder="Seleccionar" appendTo="body" [ngClass]="{ 'ng-invalid ng-dirty': isInvalid('municipalityId') }"></p-dropdown>
+                        <small class="p-error" *ngIf="isForeignCountry && isInvalid('municipalityId')">Obligatorio.</small>
                     </div>
                 </div>
 
@@ -141,19 +142,19 @@
                             <label for="isActive" class="ml-2 mb-0">Cliente Activo</label>
                         </div>
                         <div class="flex align-items-center">
-                            <p-checkbox inputId="isForeign" [(ngModel)]="client.isForeign" [binary]="true"></p-checkbox>
+                            <p-checkbox inputId="isForeign" [(ngModel)]="client.isForeign" [binary]="true" (onChange)="onForeignChange()"></p-checkbox>
                             <label for="isForeign" class="ml-2 mb-0">Cliente Extranjero</label>
                         </div>
                         <div class="flex align-items-center">
-                            <p-checkbox inputId="isLargeTaxpayer" [(ngModel)]="client.isLargeTaxpayer" [binary]="true"></p-checkbox>
+                            <p-checkbox inputId="isLargeTaxpayer" [(ngModel)]="client.isLargeTaxpayer" [binary]="true" [disabled]="client.isForeign"></p-checkbox>
                             <label for="isLargeTaxpayer" class="ml-2 mb-0">Es Gran Contribuyente</label>
                         </div>
                         <div class="flex align-items-center">
-                            <p-checkbox inputId="paysIva" [(ngModel)]="client.paysIva" [binary]="true"></p-checkbox>
+                            <p-checkbox inputId="paysIva" [(ngModel)]="client.paysIva" [binary]="true" [disabled]="client.isForeign"></p-checkbox>
                             <label for="paysIva" class="ml-2 mb-0">Paga IVA</label>
                         </div>
                         <div class="flex align-items-center">
-                            <p-checkbox inputId="isTaxpayer" [(ngModel)]="client.isTaxpayer" [binary]="true" (onChange)="onTaxpayerChange()"></p-checkbox>
+                            <p-checkbox inputId="isTaxpayer" [(ngModel)]="client.isTaxpayer" [binary]="true" [disabled]="client.isForeign" (onChange)="onTaxpayerChange()"></p-checkbox>
                             <label for="isTaxpayer" class="ml-2 mb-0">Es Contribuyente</label>
                         </div>
                         <div class="field mb-0" *ngIf="client.isTaxpayer">

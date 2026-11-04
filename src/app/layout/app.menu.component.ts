@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
-import { GLOBAL_CATALOGS } from 'src/app/demo/service/global-catalog.service';
+import { GLOBAL_CATALOGS, isAdminOnlyKey } from 'src/app/demo/service/global-catalog.service';
 
 const ALL_ITEMS = [
     {
@@ -9,18 +9,6 @@ const ALL_ITEMS = [
         label: 'Principal',
         icon: 'pi pi-fw pi-home',
         routerLink: ['/dashboard-banking']
-    },
-    {
-        key: 'gestion-tableros',
-        label: 'Gestión Proyectos',
-        icon: 'pi pi-fw pi-list',
-        routerLink: ['/apps/boards-kanban']
-    },
-    {
-        key: 'kpi-proyectos',
-        label: 'KPI Proyectos',
-        icon: 'pi pi-fw pi-chart-bar',
-        routerLink: ['/apps/kpi']
     },
     {
         key: 'clientes',
@@ -78,7 +66,7 @@ const ALL_ITEMS = [
             },
             {
                 key: 'admin-correlativos',
-                label: 'Administrador de Correlativos',
+                label: 'Correlativos Factura',
                 icon: 'pi pi-fw pi-sort-numeric-up',
                 routerLink: ['/apps/invoice-sequences']
             },
@@ -123,7 +111,7 @@ export class AppMenuComponent implements OnInit {
         // null = admin (acceso total), objeto = permisos guardados del rol
         // Un permiso aplica al item y, para menús con hijos, se filtran también los sub-items;
         // el padre solo se muestra si le queda al menos un hijo visible
-        const allowed = (key: string) => permissions === null || permissions[key] === true;
+        const allowed = (key: string) => permissions === null || (!isAdminOnlyKey(key) && permissions[key] === true);
 
         const items = ALL_ITEMS
             .map((item: any) => {
